@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Modia — Тест DebugComponent</title>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../modia/modia.css">
+</head>
+
+<body>
+  <!-- ⚠️ НЕТ data-modia-* атрибутов на body — тестируем чистый режим -->
+
+  <div class="container mt-5">
+    <h1>🧪 Тест DebugComponent</h1>
+    <p class="lead">Проверка: активация режимов отладки, публичный API.</p>
+
+    <div class="alert alert-info mt-3">
+      <strong>📍 Текущий режим:</strong> <span id="current-mode">Не активен</span>
+    </div>
+
+    <form data-component="validation" class="mt-4">
+      <div class="form-group">
+        <label>Email:</label>
+        <input type="email" class="form-control" name="email" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Отправить</button>
+    </form>
+
+    <div class="test-buttons mt-4">
+      <button id="test-is-enabled" class="btn btn-success mr-2">✅ isEnabled()</button>
+      <button id="test-get-mode" class="btn btn-info mr-2">📊 getMode()</button>
+      <button id="test-registry" class="btn btn-warning">📋 getComponentsRegistry()</button>
+    </div>
+
+    <div id="debug-output" class="mt-4 p-3 bg-light border rounded"></div>
+
+    <hr class="my-5">
+    <h3>✅ Ожидаемый результат:</h3>
+    <ul>
+      <li><strong>Без параметра:</strong> <code>isEnabled() = false</code>, <code>getMode() = null</code></li>
+      <li><strong>?modia-debug:</strong> <code>isEnabled() = true</code>, <code>getMode() = 'debug'</code></li>
+      <li><strong>?modia-log:</strong> <code>isEnabled() = true</code>, <code>getMode() = 'log'</code></li>
+      <li>Реестр компонентов доступен через API</li>
+    </ul>
+
+    <h3>🔗 Ссылки для тестирования:</h3>
+    <div class="mt-3">
+      <a href="test-03-debug.html" class="btn btn-secondary mr-2">Без режима</a>
+      <a href="test-03-debug.html?modia-debug" class="btn btn-primary mr-2">?modia-debug</a>
+      <a href="test-03-debug.html?modia-log" class="btn btn-success mr-2">?modia-log</a>
+      <a href="test-03-debug.html?modia-diag" class="btn btn-info">?modia-diag</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import '../modia/index.js';
+
+    // Показываем текущий режим
+    function updateModeDisplay() {
+      const enabled = Modia.debug.isEnabled();
+      const mode = Modia.debug.getMode();
+      const modeText = mode ? mode : 'Не активен';
+      $('#current-mode').text(`${modeText} (enabled: ${enabled})`);
+    }
+
+    $('#test-is-enabled').on('click', () => {
+      const enabled = Modia.debug.isEnabled();
+      $('#debug-output').html(`<div>isEnabled(): <strong>${enabled}</strong></div>`);
+      Modia.info(`isEnabled() = ${enabled}`, 'Test-03');
+    });
+
+    $('#test-get-mode').on('click', () => {
+      const mode = Modia.debug.getMode();
+      $('#debug-output').html(`<div>getMode(): <strong>${mode || 'null'}</strong></div>`);
+      Modia.info(`getMode() = ${mode}`, 'Test-03');
+    });
+
+    $('#test-registry').on('click', () => {
+      const registry = Modia.debug.getComponentsRegistry();
+      const output = registry.map((inst, i) =>
+        `<div>[${i}] ${inst.constructor.name} на #${inst.$el[0].id || 'no-id'}</div>`
+      ).join('');
+      $('#debug-output').html(output || 'Реестр пуст');
+      Modia.info(`Реестр: ${registry.length} компонентов`, 'Test-03');
+    });
+
+    // Авто-тест при загрузке
+    $(document).on('modia:initialized', () => {
+      setTimeout(() => {
+        updateModeDisplay();
+        Modia.info(`Debug enabled: ${Modia.debug.isEnabled()}`, 'Test-03');
+        Modia.info(`Debug mode: ${Modia.debug.getMode()}`, 'Test-03');
+      }, 500);
+    });
+  </script>
+</body>
+
+</html>

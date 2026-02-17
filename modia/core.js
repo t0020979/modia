@@ -1,334 +1,144 @@
 /**
- * Modia Core - Базовый компонент и утилиты
- * Версия: 1.1.0
- * Дата: 2026-02-10
+ * Modia Core — Базовые классы
+ * Версия: 1.2.0
+ * Дата: 2026-02-17
  * 
- * Базовый класс для всех компонентов фреймворка.
- * Предоставляет:
- * - Извлечение конфигурации из атрибутов data-component-*
- * - Управление событиями с автоматической очисткой
- * - Интеграцию с Container
- * - Поддержку обратной совместимости
- * 
- * @class BaseComponent
+ * ⚠️ jQuery доступен глобально через CDN (не импортировать)
  */
+
+import { logger } from './services/logger.js';
+
+// ============================================================================
+// BaseComponent
+// ============================================================================
+
 export class BaseComponent {
-    /**
-     * Префикс для атрибутов конфигурации компонента
-     * @type {string}
-     */
-    static attributePrefix = 'component';
+  constructor(element) {
+    this.$el = $(element);
+    this.config = this._parseConfig();
 
-    /**
-     * @param {HTMLElement} element - DOM-элемент компонента
-     */
-    constructor(element) {
-        if (!element) {
-            throw new Error('[BaseComponent] Element is required');
-        }
+    // Хранение ссылки на компонент через jQuery Data API
+    this.$el.data('modia-component', this);
 
-        this.$el = $(element);
-        this.container = null;
-        this.config = this.extractConfig();
+    // Регистрация в глобальном реестре
+    ComponentScanner.registerInstance(this);
 
-        // Массив обработчиков событий для автоматической очистки
-        this._eventHandlers = [];
-    }
+    logger.info(`Компонент создан: ${this.constructor.name}`, this.constructor.name);
+  }
 
-    /**
-     * Извлекает конфигурацию из атрибутов data-component-*
-     * 
-     * Пример:
-     * <div data-component="validation" data-component-live="true">
-     *   → config = { live: true }
-     * 
-     * @returns {Object} Конфигурация компонента
-     */
-    extractConfig() {
-        const config = {};
-        const prefix = `data-${this.constructor.attributePrefix}-`;
-        const el = this.$el[0];
+  /**
+   * Парсинг конфигурации из data-атрибутов
+   */
+  _parseConfig() {
+    const config = {};
+    const prefix = `data-${this.constructor.componentName}-`;
 
-        if (!el || typeof el.getAttributeNames !== 'function') return config;
+    Array.from(this.$el[0].attributes).forEach(attr => {
+      if (attr.name.startsWith(prefix)) {
+        const key = attr.name.replace(prefix, '');
+        config[key] = attr.value === '' ? true : attr.value;
+      }
+    });
 
-        el.getAttributeNames().forEach(attr => {
-            if (attr.startsWith(prefix)) {
-                const key = attr.substring(prefix.length).replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-                let value = this.$el.attr(attr);
+    return config;
+  }
 
-                if (value === 'true') value = true;
-                else if (value === 'false') value = false;
-                else if (/^-?\d+$/.test(value)) value = parseInt(value, 10);
+  /**
+   * Получить компонент из элемента
+   * @param {HTMLElement} element 
+   * @returns {BaseComponent|undefined}
+   */
+  static fromElement(element) {
+    return $(element).data('modia-component');
+  }
 
-                config[key] = value;
-            }
-        });
+  /**
+   * Уничтожение компонента
+   */
+  destroy() {
+    // Очистка обработчиков с пространством .modia
+    this.$el.off('.modia');
+    // Очистка данных
+    this.$el.removeData('modia-component');
+    // Удаление из глобального реестра
+    ComponentScanner.unregisterInstance(this);
 
-        return config;
-    }
-
-    /**
-     * Регистрирует обработчик события с автоматическим биндингом this
-     * 
-     * Обработчики сохраняются в this._eventHandlers для автоматической очистки в destroy()
-     * 
-     * @param {string} event - имя события (например, 'submit', 'click')
-     * @param {string|Function} selectorOrHandler - селектор делегирования ИЛИ обработчик
-     * @param {Function} [handler] - обработчик (если указан селектор)
-     * @returns {BaseComponent} this для цепочки вызовов
-     * 
-     * @example
-     * // Без селектора (событие на самом элементе)
-     * this._on('submit', this._handleSubmit);
-     * 
-     * @example
-     * // С селектором (делегирование)
-     * this._on('click', '[data-validate]', this._handleValidateClick);
-     */
-    _on(event, selectorOrHandler, handler) {
-        let selector = null;
-        let callback = null;
-
-        // Определяем, передан ли селектор
-        if (typeof selectorOrHandler === 'string') {
-            selector = selectorOrHandler;
-            callback = handler;
-        } else {
-            callback = selectorOrHandler;
-        }
-
-        // Биндинг this к обработчику
-        const boundHandler = callback.bind(this);
-
-        // Регистрируем событие
-        if (selector) {
-            this.$el.on(event, selector, boundHandler);
-            // Сохраняем для очистки
-            this._eventHandlers.push({ event, selector, handler: boundHandler });
-        } else {
-            this.$el.on(event, boundHandler);
-            // Сохраняем для очистки
-            this._eventHandlers.push({ event, handler: boundHandler });
-        }
-
-        return this;
-    }
-
-    /**
-     * Удаляет обработчик события
-     * 
-     * @param {string} event - имя события
-     * @param {string|Function} [selectorOrHandler] - селектор ИЛИ обработчик
-     * @param {Function} [handler] - обработчик (если указан селектор)
-     * @returns {BaseComponent} this для цепочки вызовов
-     * 
-     * @example
-     * // Удалить все обработчики 'submit'
-     * this._off('submit');
-     * 
-     * @example
-     * // Удалить обработчик с селектором
-     * this._off('click', '[data-validate]', this._handleValidateClick);
-     */
-    _off(event, selectorOrHandler, handler) {
-        let selector = null;
-        let callback = null;
-
-        if (typeof selectorOrHandler === 'string') {
-            selector = selectorOrHandler;
-            callback = handler;
-        } else if (typeof selectorOrHandler === 'function') {
-            callback = selectorOrHandler;
-        }
-
-        // Удаляем из jQuery
-        if (selector && callback) {
-            // Находим bound-версию обработчика
-            const handlerEntry = this._eventHandlers.find(
-                h => h.event === event && h.selector === selector && h.handler.name === callback.name
-            );
-
-            if (handlerEntry) {
-                this.$el.off(event, selector, handlerEntry.handler);
-                // Удаляем из массива
-                this._eventHandlers = this._eventHandlers.filter(h => h !== handlerEntry);
-            }
-        } else if (callback) {
-            // Без селектора
-            const handlerEntry = this._eventHandlers.find(
-                h => h.event === event && h.handler.name === callback.name
-            );
-
-            if (handlerEntry) {
-                this.$el.off(event, handlerEntry.handler);
-                this._eventHandlers = this._eventHandlers.filter(h => h !== handlerEntry);
-            }
-        } else {
-            // Удаляем все обработчики для события
-            const handlersForEvent = this._eventHandlers.filter(h => h.event === event);
-
-            handlersForEvent.forEach(({ event: evt, selector: sel, handler: hdl }) => {
-                if (sel) {
-                    this.$el.off(evt, sel, hdl);
-                } else {
-                    this.$el.off(evt, hdl);
-                }
-            });
-
-            // Удаляем из массива
-            this._eventHandlers = this._eventHandlers.filter(h => h.event !== event);
-        }
-
-        return this;
-    }
-
-    /**
-     * Устанавливает контейнер для компонента
-     * @param {Container} container - контейнер
-     */
-    setContainer(container) {
-        this.container = container;
-    }
-
-    /**
-     * Хук, вызываемый при изменении состояния контейнера
-     * @param {*} newState - новое состояние
-     */
-    onStateChange(newState) {
-        // Переопределяется в потомках
-    }
-
-    /**
-     * Очищает ресурсы компонента
-     * Удаляет все обработчики событий
-     */
-    destroy() {
-        // Удаляем все обработчики событий
-        this._eventHandlers.forEach(({ event, selector, handler }) => {
-            if (selector) {
-                this.$el.off(event, selector, handler);
-            } else {
-                this.$el.off(event, handler);
-            }
-        });
-
-        // Очищаем массив
-        this._eventHandlers = [];
-
-        // Очищаем ссылки
-        this.$el = null;
-        this.container = null;
-    }
+    logger.info(`Компонент уничтожен: ${this.constructor.name}`, this.constructor.name);
+  }
 }
 
-/**
- * Container
- * 
- * Контейнер для управления состоянием группы компонентов.
- * При изменении состояния уведомляет все компоненты.
- * 
- * @class Container
- */
+// ============================================================================
+// Container
+// ============================================================================
+
 export class Container {
-    constructor() {
-        this.state = null;
-        this.components = [];
-    }
+  constructor() {
+    this.state = {};
+    this.components = [];
+  }
 
-    /**
-     * Устанавливает состояние контейнера
-     * @param {*} newState - новое состояние
-     */
-    setState(newState) {
-        if (this.state === newState) return;
-        this.state = newState;
+  setState(newState) {
+    this.state = { ...this.state, ...newState };
+    this.components.forEach(comp => {
+      if (comp.onStateChange) {
+        comp.onStateChange(this.state);
+      }
+    });
+  }
 
-        // Уведомляем все компоненты
-        this.components.forEach(comp => {
-            if (typeof comp.onStateChange === 'function') {
-                comp.onStateChange(newState);
-            }
-        });
-    }
-
-    /**
-     * Добавляет компонент в контейнер
-     * @param {BaseComponent} component - компонент
-     */
-    addComponent(component) {
-        component.setContainer(this);
-        this.components.push(component);
-    }
-
-    /**
-     * Удаляет компонент из контейнера
-     * @param {BaseComponent} component - компонент
-     */
-    removeComponent(component) {
-        const index = this.components.indexOf(component);
-        if (index > -1) {
-            this.components.splice(index, 1);
-            component.setContainer(null);
-        }
-    }
-
-    /**
-     * Очищает контейнер
-     */
-    destroy() {
-        this.components.forEach(comp => {
-            if (typeof comp.destroy === 'function') {
-                comp.destroy();
-            }
-        });
-        this.components = [];
-        this.state = null;
-    }
+  addComponent(component) {
+    this.components.push(component);
+  }
 }
 
-/**
- * ComponentScanner
- * 
- * Сканер компонентов для автоматической инициализации.
- * Регистрирует компоненты и сканирует DOM при загрузке.
- * 
- * @class ComponentScanner
- */
+export const container = new Container();
+
+// ============================================================================
+// ComponentScanner
+// ============================================================================
+
 export class ComponentScanner {
-    static components = [];
+  static components = {}; // Зарегистрированные классы
+  static instances = [];  // Глобальный реестр экземпляров (для отладки)
 
-    /**
-     * Регистрирует компонент для автоматической инициализации
-     * @param {Class<BaseComponent>} ComponentClass - класс компонента
-     */
-    static register(ComponentClass) {
-        if (!ComponentClass.componentName) {
-            console.warn('Component must have static componentName:', ComponentClass);
-            return;
+  static register(ComponentClass) {
+    const name = ComponentClass.componentName;
+    this.components[name] = ComponentClass;
+    logger.info(`Компонент зарегистрирован: ${name}`, 'ComponentScanner');
+  }
+
+  static registerInstance(instance) {
+    this.instances.push(instance);
+  }
+
+  static unregisterInstance(instance) {
+    const index = this.instances.indexOf(instance);
+    if (index > -1) {
+      this.instances.splice(index, 1);
+    }
+  }
+
+  static scan(root = document) {
+    const instances = [];
+
+    Object.entries(this.components).forEach(([name, ComponentClass]) => {
+      const selector = `[data-component="${name}"]`;
+      $(root).find(selector).addBack(selector).each((i, el) => {
+        // Проверка: уже инициализирован ли этот элемент?
+        if ($(el).data('modia-component')) {
+          logger.warn(`Компонент уже инициализирован: ${name}`, 'ComponentScanner');
+          return;
         }
-        this.components.push(ComponentClass);
-    }
 
-    /**
-     * Сканирует DOM и инициализирует все компоненты
-     * @param {HTMLElement|Document} [root=document] - корневой элемент для сканирования
-     * @returns {Array<BaseComponent>} Массив инициализированных компонентов
-     */
-    static scan(root = document) {
-        const instances = [];
+        const instance = new ComponentClass(el);
+        instances.push(instance);
+        container.addComponent(instance);
 
-        this.components.forEach(ComponentClass => {
-            const selector = `[data-component="${ComponentClass.componentName}"]`;
-            $(root).find(selector).each((i, el) => {
-                try {
-                    const instance = new ComponentClass(el);
-                    instances.push(instance);
-                } catch (e) {
-                    console.error(`Failed to initialize component "${ComponentClass.componentName}"`, e);
-                }
-            });
-        });
+        // Кастомное событие для каждого компонента
+        $(el).trigger('modia:component-created', { component: instance });
+      });
+    });
 
-        return instances;
-    }
+    return instances;
+  }
 }
