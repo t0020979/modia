@@ -24,14 +24,17 @@ modia/
 ├── core.js              ← Ядро: BaseComponent, Container, ComponentScanner
 ├── index.js             ← Точка входа: регистрация + экспорт Modia.scan()
 ├── components/          ← Компоненты (поведение контейнера)
-│   ├── validation.js    ← ValidationComponent
+│   ├── validation.js    ← ValidationComponent (v1.2)
 │   └── debug.js         ← DebugComponent (v1.2)
+│   └── debug-panel.js   ← DebugPanel Component (v1.3+) ⏳
 ├── services/            ← Сервисы (логика без состояния)
 │   ├── logger.js        ← Logger Service (v1.2)
-│   ├── field-validator.js ← FieldValidator
-│   └── field-error-renderer.js ← FieldErrorRenderer
-└── configurations/      ← Конфигурации (чистые данные)
-    └── validation-rules.js ← validationRules
+│   ├── field-validator.js ← FieldValidator (v1.2)
+│   └── field-error-renderer.js ← FieldErrorRenderer (v1.2)
+├── configurations/      ← Конфигурации (чистые данные)
+│   └── validation-rules.js ← validationRules (v1.2)
+└── styles/              ← Стили (v1.3+) ⏳
+    └── modia.css        ← Основные стили фреймворка
 ```
 
 ## 🧱 Ключевые принципы
