@@ -1,21 +1,31 @@
 /**
- * Modia Core — Базовые классы
- * Версия: 1.2.0
- * Дата: 2026-02-17
- * 
- * ⚠️ jQuery доступен глобально через CDN (не импортировать)
- */
-
+Modia Core — Базовые классы
+Версия: 1.2.0
+Дата: 2026-02-19
+⚠️ jQuery доступен глобально через CDN (не импортировать)
+*/
 import { logger } from './services/logger.js';
 
 // ============================================================================
 // BaseComponent
 // ============================================================================
-
 export class BaseComponent {
+  static get componentName() {
+    return 'base'; // Переопределяется в потомках
+  }
+
   constructor(element) {
+    if (!element) {
+      throw new Error('[BaseComponent] Element is required');
+    }
     this.$el = $(element);
-    this.config = this._parseConfig();
+    this.container = null;
+
+    // extractConfig() с конвертацией типов
+    this.config = this.extractConfig();
+
+    // Массив обработчиков событий для отладки (не для очистки)
+    this._eventHandlers = [];
 
     // Хранение ссылки на компонент через jQuery Data API
     this.$el.data('modia-component', this);
@@ -27,16 +37,32 @@ export class BaseComponent {
   }
 
   /**
-   * Парсинг конфигурации из data-атрибутов
+   * Извлекает конфигурацию из атрибутов data-component-*
+   * @returns {Object} Конфигурация компонента
    */
-  _parseConfig() {
+  extractConfig() {
     const config = {};
     const prefix = `data-${this.constructor.componentName}-`;
+    const el = this.$el[0];
+    if (!el || typeof el.getAttributeNames !== 'function') {
+      return config;
+    }
 
-    Array.from(this.$el[0].attributes).forEach(attr => {
-      if (attr.name.startsWith(prefix)) {
-        const key = attr.name.replace(prefix, '');
-        config[key] = attr.value === '' ? true : attr.value;
+    el.getAttributeNames().forEach(attr => {
+      if (attr.startsWith(prefix)) {
+        const key = attr.substring(prefix.length).replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        let value = this.$el.attr(attr);
+
+        // ✅ Конвертация типов
+        if (value === 'true') {
+          value = true;
+        } else if (value === 'false') {
+          value = false;
+        } else if (/^-?\d+$/.test(value)) {
+          value = parseInt(value, 10);
+        }
+
+        config[key] = value;
       }
     });
 
@@ -44,8 +70,68 @@ export class BaseComponent {
   }
 
   /**
+   * Регистрирует обработчик события с автоматическим биндингом this
+   * @param {string} event - имя события
+   * @param {string|Function} selectorOrHandler - селектор ИЛИ обработчик
+   * @param {Function} [handler] - обработчик (если указан селектор)
+   * @returns {BaseComponent} this для цепочки вызовов
+   */
+  _on(event, selectorOrHandler, handler) {
+    let selector = null;
+    let callback = null;
+    if (typeof selectorOrHandler === 'string') {
+      selector = selectorOrHandler;
+      callback = handler;
+    } else {
+      callback = selectorOrHandler;
+    }
+
+    const boundHandler = callback.bind(this);
+
+    // ✅ Добавляем .modia namespace для всех событий
+    if (selector) {
+      this.$el.on(`${event}.modia`, selector, boundHandler);
+      this._eventHandlers.push({ event: `${event}.modia`, selector, handler: boundHandler });
+    } else {
+      this.$el.on(`${event}.modia`, boundHandler);
+      this._eventHandlers.push({ event: `${event}.modia`, handler: boundHandler });
+    }
+
+    return this;
+  }
+
+  /**
+   * Удаляет обработчик события
+   * ⚠️ Упрощено: использует .modia namespace для массовой очистки
+   * @param {string} [event] - имя события (опционально, для отладки)
+   * @returns {BaseComponent} this для цепочки вызовов
+   */
+  _off(event) {
+    // ✅ Используем namespace для очистки всех .modia событий
+    this.$el.off('.modia');
+    this._eventHandlers = [];
+    return this;
+  }
+
+  /**
+   * Устанавливает контейнер для компонента
+   * @param {Container} container - контейнер
+   */
+  setContainer(container) {
+    this.container = container;
+  }
+
+  /**
+   * Хук, вызываемый при изменении состояния контейнера
+   * @param {*} newState - новое состояние
+   */
+  onStateChange(newState) {
+    // Переопределяется в потомках
+  }
+
+  /**
    * Получить компонент из элемента
-   * @param {HTMLElement} element 
+   * @param {HTMLElement} element
    * @returns {BaseComponent|undefined}
    */
   static fromElement(element) {
@@ -56,12 +142,29 @@ export class BaseComponent {
    * Уничтожение компонента
    */
   destroy() {
-    // Очистка обработчиков с пространством .modia
+    logger.info(`Компонент уничтожается: ${this.constructor.name}`, this.constructor.name);
+
+    // ✅ Очищаем все обработчики с .modia namespace
     this.$el.off('.modia');
+    this._eventHandlers = [];
+
     // Очистка данных
     this.$el.removeData('modia-component');
+
     // Удаление из глобального реестра
     ComponentScanner.unregisterInstance(this);
+
+    // Удаление из контейнера
+    if (this.container) {
+      this.container.removeComponent(this);
+    }
+
+    // ✅ Событие о уничтожении компонента
+    this.$el.trigger('modia:component-destroyed', { component: this });
+
+    // Очистка ссылок
+    this.$el = null;
+    this.container = null;
 
     logger.info(`Компонент уничтожен: ${this.constructor.name}`, this.constructor.name);
   }
@@ -70,7 +173,6 @@ export class BaseComponent {
 // ============================================================================
 // Container
 // ============================================================================
-
 export class Container {
   constructor() {
     this.state = {};
@@ -78,16 +180,41 @@ export class Container {
   }
 
   setState(newState) {
+    // Проверка на рекурсию
+    if (this._isSettingState) return;
+    this._isSettingState = true;
     this.state = { ...this.state, ...newState };
+
     this.components.forEach(comp => {
-      if (comp.onStateChange) {
+      if (typeof comp.onStateChange === 'function') {
         comp.onStateChange(this.state);
       }
     });
+
+    this._isSettingState = false;
   }
 
   addComponent(component) {
+    component.setContainer(this);
     this.components.push(component);
+  }
+
+  removeComponent(component) {
+    const index = this.components.indexOf(component);
+    if (index > -1) {
+      this.components.splice(index, 1);
+      component.setContainer(null);
+    }
+  }
+
+  destroy() {
+    this.components.forEach(comp => {
+      if (typeof comp.destroy === 'function') {
+        comp.destroy();
+      }
+    });
+    this.components = [];
+    this.state = {};
   }
 }
 
@@ -96,7 +223,6 @@ export const container = new Container();
 // ============================================================================
 // ComponentScanner
 // ============================================================================
-
 export class ComponentScanner {
   static components = {}; // Зарегистрированные классы
   static instances = [];  // Глобальный реестр экземпляров (для отладки)
@@ -121,23 +247,31 @@ export class ComponentScanner {
   static scan(root = document) {
     const instances = [];
 
-    Object.entries(this.components).forEach(([name, ComponentClass]) => {
-      const selector = `[data-component="${name}"]`;
-      $(root).find(selector).addBack(selector).each((i, el) => {
-        // Проверка: уже инициализирован ли этот элемент?
-        if ($(el).data('modia-component')) {
-          logger.warn(`Компонент уже инициализирован: ${name}`, 'ComponentScanner');
-          return;
-        }
+    // ✅ Добавляем try/catch для защиты от ошибок одного компонента
+    try {
+      Object.entries(this.components).forEach(([name, ComponentClass]) => {
+        const selector = `[data-component="${name}"]`;
+        $(root).find(selector).addBack(selector).each((i, el) => {
+          // Проверка: уже инициализирован ли этот элемент?
+          if ($(el).data('modia-component')) {
+            logger.warn(`Компонент уже инициализирован: ${name}`, 'ComponentScanner');
+            return;
+          }
 
-        const instance = new ComponentClass(el);
-        instances.push(instance);
-        container.addComponent(instance);
+          const instance = new ComponentClass(el);
+          instances.push(instance);
+          container.addComponent(instance);
 
-        // Кастомное событие для каждого компонента
-        $(el).trigger('modia:component-created', { component: instance });
+          // ✅ Кастомное событие для каждого компонента
+          $(el).trigger('modia:component-created', { component: instance });
+        });
       });
-    });
+    } catch (error) {
+      logger.error(`Ошибка сканирования: ${error.message}`, 'ComponentScanner');
+    }
+
+    // ✅ Кастомное событие после сканирования
+    $(root).trigger('modia:scanned', { instances, root });
 
     return instances;
   }
