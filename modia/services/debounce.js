@@ -62,6 +62,9 @@ export function debounce(func, wait = 300, immediate = false) {
       }
     };
 
+    const callNow = immediate && !timeout;
+    console.log('[Debounce] callNow:', immediate && !timeout, 'immediate:', immediate, 'timeout:', timeout);
+
     // Сбрасываем предыдущий таймер (если был)
     clearTimeout(timeout);
 
@@ -70,7 +73,7 @@ export function debounce(func, wait = 300, immediate = false) {
 
     // В режиме immediate вызываем функцию немедленно при первом вызове
     // и если таймер ещё не установлен
-    if (immediate && !timeout) {
+    if (callNow) {
       safeCall(func, context, args);
     }
   };
