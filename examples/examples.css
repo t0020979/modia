@@ -1,0 +1,209 @@
+/* ========================================
+Modia — Стили для примеров и тестов
+Версия: 1.2.0
+Дата: 2026-02-16
+
+Примечание: Основные стили берёт из Bootstrap 4 (CDN)
+Этот файл содержит только тест-специфичные стили
+======================================== */
+
+/* ────────────────────────────────────────
+1. Тестовые контейнеры
+──────────────────────────────────────── */
+#ajax-container {
+  margin-top: 20px;
+  padding: 20px;
+  border: 2px dashed #ccc;
+  background: #fafafa;
+}
+
+#ajax-container.loaded {
+  border-color: #28a745;
+  background: #f0fff0;
+}
+
+/* ────────────────────────────────────────
+2. Тестовые кнопки
+──────────────────────────────────────── */
+.test-buttons {
+  margin-top: 20px;
+}
+
+.test-buttons button {
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+/* ────────────────────────────────────────
+3. Результаты тестов
+──────────────────────────────────────── */
+.version-box,
+#debug-status {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+.version-number {
+  font-size: 32px;
+  color: #333;
+  margin: 10px 0;
+}
+
+.check-result {
+  font-weight: bold;
+  margin-top: 15px;
+}
+
+.check-result.pass {
+  color: #28a745;
+}
+
+.check-result.fail {
+  color: #dc3545;
+}
+
+/* ────────────────────────────────────────
+4. Счётчики
+──────────────────────────────────────── */
+.counter {
+  font-size: 24px;
+  color: #28a745;
+  margin-top: 20px;
+}
+
+/* ────────────────────────────────────────
+5. Разделители
+──────────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid #dee2e6;
+  margin: 30px 0;
+}
+
+/* ========================================
+6. Тестовые секции
+======================================== */
+.test-section {
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.test-section h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 16px;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+}
+
+/* Результаты тестов */
+.test-result {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.test-result.pass {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.test-result.fail {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.test-result.pending {
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+/* Ожидаемые результаты */
+.expected-result {
+  background: #e7f3ff;
+  border-left: 4px solid #007bff;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.expected-result h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #0056b3;
+}
+
+.expected-result ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.expected-result code {
+  background: #f8f9fa;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+/* Тестовые компоненты */
+.test-component {
+  border: 2px dashed #007bff;
+  padding: 10px;
+  margin: 10px 0;
+  background: #f8f9fa;
+}
+
+/* Лог событий */
+.event-log {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 10px 0;
+}
+
+/* Реестр компонентов */
+.registry-display {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 10px 0;
+  white-space: pre-wrap;
+}
+
+/* Кнопки тестов */
+.test-buttons {
+  margin-top: 15px;
+}
+
+.test-buttons button {
+  margin: 5px 5px 5px 0;
+}
+
+/* Статус инициализации */
+#status {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Контейнер состояния */
+.state-display {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  padding: 10px;
+  font-family: monospace;
+  margin: 10px 0;
+}
