@@ -5,13 +5,16 @@
  * Не знает о форме, компонентах или событиях.
  * Работает только с полем, правилами и рендерером ошибок.
  * 
- * Улучшения в версии 1.1.0:
+ * Улучшения в версии 1.2.0:
  * - 5 уровней иерархии сообщений (включая обратную совместимость)
  * - Публичный метод loadRules()
  * - Улучшенная обработка массивов полей
  * 
  * @class FieldValidator
+ * @version 1.2.0
+ * @file modia/services/field-validator.js
  */
+import { logger } from './logger.js';
 import { FieldErrorRenderer } from './field-error-renderer.js';
 
 export class FieldValidator {
@@ -20,32 +23,49 @@ export class FieldValidator {
    * @param {jQuery} $errorScreen - элемент, для которого выводится ошибка (визуальный)
    * @param {jQuery} $root - корень формы/контейнера (для поиска шаблонов ошибок)
    * @param {Array} validationRules - массив правил валидации
-   * @param {FieldErrorRenderer} errorRenderer - рендерер ошибок
+   * @param {FieldErrorRenderer} errorRenderer - рендерер ошибок (обязательно)
    */
   constructor($valueSource, $errorScreen, $root, validationRules, errorRenderer) {
+    // ✅ Проверка обязательного $valueSource
     if (!$valueSource || $valueSource.length === 0) {
       throw new Error('[FieldValidator] $valueSource is required');
+    }
+
+    // ✅ Проверка обязательного errorRenderer (без fallback!)
+    if (!errorRenderer) {
+      throw new Error('[FieldValidator] errorRenderer is required');
     }
 
     this.$valueSource = $valueSource;
     this.$errorScreen = $errorScreen || $valueSource.first();
     this.$root = $root;
     this.validationRules = validationRules;
-    this.errorRenderer = errorRenderer || new FieldErrorRenderer(this.$errorScreen);
+    this.errorRenderer = errorRenderer;
 
-    // Загружаем правила при инициализации
+    // ✅ Кэширование правил при инициализации
     this.loadRules();
+
+    logger.info(`FieldValidator инициализирован: ${this._getFieldIdentifier()}`, 'FieldValidator');
+  }
+
+  /**
+   * Получает идентификатор поля для логирования
+   * @private
+   * @returns {string}
+   */
+  _getFieldIdentifier() {
+    const id = this.$valueSource.attr('id') || 'unknown';
+    const name = this.$valueSource.attr('name') || 'unnamed';
+    return `#${id}[name=${name}]`;
   }
 
   /**
    * Получает значение поля
-   * 
    * Логика:
-   * 1. Если несколько элементов (массив полей) — возвращает массив значений
-   * 2. Если один элемент — возвращает строку
-   * 3. Для стандартных полей (<input>, <select>, <textarea>) — .val()
-   * 4. Для [contenteditable] — .text() (без HTML тегов)
-   * 
+   * - Если несколько элементов (массив полей) — возвращает массив значений
+   * - Если один элемент — возвращает строку
+   * - Для стандартных полей (input, textarea, select) — .val()
+   * - Для [contenteditable] — .text() (без HTML тегов)
    * @returns {string|Array<string>} Значение поля или массив значений
    */
   getFieldValue() {
@@ -89,8 +109,7 @@ export class FieldValidator {
    */
   isVisibleForValidation() {
     // Валидируем только если экран ошибки видим и не отключён
-    return this.$errorScreen.is(':visible') &&
-      !this.$errorScreen.is(':disabled');
+    return this.$errorScreen.is(':visible') && !this.$errorScreen.is(':disabled');
   }
 
   /**
@@ -102,21 +121,23 @@ export class FieldValidator {
     this.applicableRules = this.validationRules.filter(rule => {
       return this.$valueSource.is(rule.selector);
     });
+
+    logger.info(`Загружено правил: ${this.applicableRules.length} для ${this._getFieldIdentifier()}`, 'FieldValidator');
   }
 
   /**
    * Валидирует поле по всем подходящим правилам
    * Останавливается на первой ошибке
-   * 
    * @returns {boolean} true если поле валидно, false если есть ошибка
    */
   validate() {
     // Пропускаем скрытые поля
     if (!this.isVisibleForValidation()) {
+      logger.info(`Пропущено поле (скрыто/отключено): ${this._getFieldIdentifier()}`, 'FieldValidator');
       return true; // Считаем валидным
     }
 
-    // Очищаем старые ошибки перед валидацией
+    // Очищаем старые ошибки перед валидацией (идемпотентность)
     this.errorRenderer.clearError();
 
     // Применяем правила по порядку
@@ -127,11 +148,15 @@ export class FieldValidator {
       // Если правило вернуло ошибку
       if (result === false || (result && !result.valid)) {
         const params = result && result.params ? result.params : {};
-        // Получаем сообщение об ошибке
-        const errorMessage = this._getErrorMessage(rule, params);
+
+        // Получаем сообщение об ошибке (с логированием уровня)
+        const { message, level } = this._getErrorMessageWithLevel(rule, params);
 
         // Рендерим ошибку
-        this.errorRenderer.renderError(errorMessage);
+        this.errorRenderer.renderError(message);
+
+        // Логирование в зависимости от уровня
+        this._logErrorLevel(rule.name, level);
 
         // Возвращаем false — поле не валидно
         return false;
@@ -139,68 +164,116 @@ export class FieldValidator {
     }
 
     // Все правила пройдены — поле валидно
+    logger.info(`Поле валидно: ${this._getFieldIdentifier()}`, 'FieldValidator');
     return true;
   }
 
   /**
-   * Получает сообщение об ошибке по иерархии приоритетов (5 уровней)
-   * 
-   * Приоритеты:
-   * 1. Inline-атрибут на поле (например, data-error-text-required)
-   * 2. Шаблон на форме по типу проверки (например, .error-templates [data-rule="required"])
-   * 3. Старые шаблоны (#error_span, #format-error-span и т.д.) - обратная совместимость
-   * 4. Сообщение по умолчанию в конфигурации правила (rule.defaultMessage)
-   * 5. Fallback в валидаторе ("Field error")
-   * 
+   * Получает сообщение об ошибке с определением уровня
+   * @private
    * @param {Object} rule - правило валидации
    * @param {Object} params - параметры для подстановки
-   * @returns {string} HTML-фрагмент с сообщением об ошибке
-   * @private
+   * @returns {{message: string, level: number}}
    */
-  _getErrorMessage(rule, params) {
-    return (
-      this._getInlineErrorMessage(rule.name) ||
-      this._getContainerTemplateMessage(rule.name, params) ||
-      this._getSeparateTemplateMessage(rule.name, params) ||
-      this._resolveDefaultMessage(rule.defaultMessage, params) ||
-      this._getFallbackMessage(rule.name, params)
-    );
+  _getErrorMessageWithLevel(rule, params) {
+    // Уровень 1: Inline-атрибут
+    const inlineMessage = this._getInlineErrorMessage(rule.name);
+    if (inlineMessage) {
+      return { message: inlineMessage, level: 1 };
+    }
+
+    // Уровень 2: Шаблон в контейнере
+    const containerMessage = this._getContainerTemplateMessage(rule.name, params);
+    if (containerMessage) {
+      return { message: containerMessage, level: 2 };
+    }
+
+    // Уровень 3: Отдельные шаблоны (legacy)
+    const separateMessage = this._getSeparateTemplateMessage(rule.name, params);
+    if (separateMessage) {
+      return { message: separateMessage, level: 3 };
+    }
+
+    // Уровень 4: Сообщение по умолчанию
+    const defaultMessage = this._resolveDefaultMessage(rule.defaultMessage, params);
+    if (defaultMessage) {
+      return { message: defaultMessage, level: 4 };
+    }
+
+    // Уровень 5: Fallback
+    return { message: this._getFallbackMessage(rule.name, params), level: 5 };
+  }
+
+  /**
+   * Логирует ошибку в зависимости от уровня
+   * @private
+   * @param {string} ruleName - имя правила
+   * @param {number} level - уровень сообщения (1-5)
+   */
+  _logErrorLevel(ruleName, level) {
+    const fieldId = this._getFieldIdentifier();
+
+    // Уровни 1-2: Без логирования (штатная работа)
+    if (level === 1 || level === 2) {
+      return;
+    }
+
+    // Уровень 3: Warning - предупреждение о миграции
+    if (level === 3) {
+      logger.warn(
+        `Поле ${fieldId}: используется legacy-шаблон для правила "${ruleName}". ` +
+        `Рекомендуется перенести шаблон в .error-templates`,
+        'FieldValidator'
+      );
+      return;
+    }
+
+    // Уровни 4-5: Error - требуется исправление конфигурации
+    if (level === 4) {
+      logger.error(
+        `Поле ${fieldId}: не найден шаблон для правила "${ruleName}". ` +
+        `Добавьте шаблон в .error-templates [data-rule="${ruleName}"]`,
+        'FieldValidator'
+      );
+      return;
+    }
+
+    // Уровень 5: Fallback - критическая ошибка
+    if (level === 5) {
+      logger.error(
+        `Поле ${fieldId}: КРИТИЧЕСКАЯ ОШИБКА - не найдено сообщение для правила "${ruleName}". ` +
+        `Требуется немедленное исправление конфигурации`,
+        'FieldValidator'
+      );
+    }
   }
 
   /**
    * Приоритет 1: Inline-атрибут на поле
+   * @private
    * @param {string} ruleName - имя правила
    * @returns {string|null}
-   * @private
    */
   _getInlineErrorMessage(ruleName) {
-    // Формат: data-error-text-required, data-error-text-max-length
     const attrName = `data-error-text-${ruleName}`;
     const message = this.$valueSource.attr(attrName);
-
-    // Возвращаем null если атрибут не задан
     if (!message) {
       return null;
     }
-
     return this._formatErrorMessage(message);
   }
 
   /**
    * Приоритет 2: Шаблон в контейнере (новый формат)
-   * Ищет шаблон внутри .error-templates по атрибуту data-rule
-   * 
+   * @private
    * @param {string} ruleName - имя правила
    * @param {Object} params - параметры для подстановки
    * @returns {string|null}
-   * @private
    */
   _getContainerTemplateMessage(ruleName, params) {
-    // Ищем шаблон в .error-templates
     const $template = this.$root.find(
       `${FieldErrorRenderer.DEFAULT_CONFIG.errorTemplateClass} [data-rule="${ruleName}"]`
     );
-
     if ($template.length === 0) return null;
 
     let html = $template.html();
@@ -209,12 +282,10 @@ export class FieldValidator {
 
   /**
    * Приоритет 3: Отдельные шаблоны (старый формат)
-   * Ищет отдельные элементы по селекторам (#error_span, #format-error-span и т.д.)
-   * 
+   * @private
    * @param {string} ruleName - имя правила
    * @param {Object} params - параметры для подстановки
    * @returns {string|null}
-   * @private
    */
   _getSeparateTemplateMessage(ruleName, params) {
     const templateSelector = FieldErrorRenderer.DEFAULT_CONFIG.separateTemplates[ruleName];
@@ -229,23 +300,20 @@ export class FieldValidator {
 
   /**
    * Приоритет 4: Сообщение по умолчанию в правиле
+   * @private
    * @param {string|Function} defaultMessage - строка или функция
    * @param {Object} params - параметры для подстановки
    * @returns {string|null}
-   * @private
    */
   _resolveDefaultMessage(defaultMessage, params) {
-    // Возвращаем null если сообщение не задано
     if (!defaultMessage) {
       return null;
     }
 
     let message;
-
     if (typeof defaultMessage === 'function') {
       message = defaultMessage(params);
     } else {
-      // Подстановка параметров в строку
       message = defaultMessage;
       Object.entries(params).forEach(([key, value]) => {
         const regex = new RegExp(`__${key.toUpperCase()}__`, 'g');
@@ -258,29 +326,25 @@ export class FieldValidator {
 
   /**
    * Приоритет 5: Fallback в валидаторе
+   * @private
    * @param {string} ruleName - имя правила
    * @param {Object} params - параметры
    * @returns {string}
-   * @private
    */
   _getFallbackMessage(ruleName, params) {
-    // Общий текст ошибки
     return this._formatErrorMessage('Field error');
   }
 
   /**
    * Форматирует сообщение с подстановкой параметров
-   * Заменяет __KEY__ на значение из params
-   * 
+   * @private
    * @param {string} message - сообщение
    * @param {Object} params - параметры
    * @returns {string}
-   * @private
    */
   _formatMessage(message, params) {
     if (!message) return message;
 
-    // Подстановка параметров: __COUNT__ → 600, __FIELD_NAME__ → "Email"
     return message.replace(/__\w+__/g, match => {
       const key = match.replace(/__/g, '');
       return params[key] !== undefined ? params[key] : match;
@@ -289,19 +353,18 @@ export class FieldValidator {
 
   /**
    * Оборачивает текст сообщения в форматированный HTML
-   * 
+   * @private
    * @param {string} text - текст сообщения
    * @param {string} [tag='span'] - HTML-тег для обёртки
    * @param {string} [className='text-danger'] - класс для элемента
-   * @returns {string} HTML-фрагмент с сообщением
-   * @private
+   * @returns {string}
    */
   _formatErrorMessage(text, tag = 'span', className = 'text-danger') {
     return `<${tag} class="${className}">${text}</${tag}>`;
   }
 
   /**
-   * Очищает ошибки
+   * Очищает ошибки (делегует рендереру)
    */
   clearError() {
     this.errorRenderer.clearError();
