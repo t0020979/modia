@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест FieldErrorRenderer (Логирование + Edge Cases)</title>
+
+  <!-- jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- Modia CSS -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <!-- Примеры CSS -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <style>
+    .log-indicator {
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-weight: bold;
+      display: inline-block;
+      margin: 5px 0;
+    }
+
+    .log-active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .log-inactive {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .marker-output {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .warning-box {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 10px;
+      border-radius: 3px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест FieldErrorRenderer Service</h1>
+    <p class="text-muted">Логирование + Edge Cases + Дополнительные методы</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li><code>logger.info()</code> при каждом рендере и очистке</li>
+        <li><code>logger.warn()</code> при обёртке plain text</li>
+        <li><code>logger.warn()</code> при отсутствии ID у элементов</li>
+        <li><code>logger.warn()</code> при спецсимволах в ID</li>
+        <li><code>getLastErrorMessage()</code> возвращает последнее сообщение</li>
+        <li><code>setStyle()</code> меняет стиль и логирует</li>
+        <li>Все логи дублируются в консоль и на страницу</li>
+      </ul>
+    </div>
+
+    <!-- Секция 1: Проверка логирования -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Проверка логирования</h3>
+
+      <div class="form-group" id="form_log_1">
+        <label for="email_log">Email *</label>
+        <input type="email" id="email_log" class="form-control" placeholder="test@example.com">
+      </div>
+
+      <div class="mt-2">
+        <span class="log-indicator log-inactive" id="status_log_1">Логирование: ожидание</span>
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_log_1">📝 renderError()</button>
+        <button class="btn btn-secondary" id="btn_clear_log_1">🗑️ clearError()</button>
+        <button class="btn btn-info" id="btn_check_log_1">🔍 Проверить логи</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="output_log_1">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Секция 2: Plain text wrapping (warn) -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Plain text wrapping (logger.warn)</h3>
+
+      <div class="form-group" id="form_log_2">
+        <label for="name_log">Имя *</label>
+        <input type="text" id="name_log" class="form-control" placeholder="Введите имя">
+      </div>
+
+      <div class="warning-box">
+        <strong>⚠️ Внимание:</strong> Plain text будет обёрнут в &lt;span&gt; с logger.warn()
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_text_log_2">📝 renderError("Текст")</button>
+        <button class="btn btn-primary" id="btn_render_html_log_2">📝
+          renderError("&lt;span&gt;HTML&lt;/span&gt;")</button>
+        <button class="btn btn-info" id="btn_check_wrap_log_2">🔍 Проверить обёртку</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="output_log_2">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Секция 3: getLastErrorMessage() -->
+    <div class="test-section">
+      <h3>📍 Секция 3: getLastErrorMessage()</h3>
+
+      <div class="form-group" id="form_log_3">
+        <label for="phone_log">Телефон *</label>
+        <input type="tel" id="phone_log" class="form-control" placeholder="+7 (___) ___-__-__">
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_msg_log_3">📝 renderError()</button>
+        <button class="btn btn-info" id="btn_get_msg_log_3">🔍 getLastErrorMessage()</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="output_log_3">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Секция 4: setStyle() -->
+    <div class="test-section">
+      <h3>📍 Секция 4: setStyle() + логирование</h3>
+
+      <div class="form-group" id="form_log_4">
+        <label for="password_log">Пароль *</label>
+        <input type="password" id="password_log" class="form-control" placeholder="Введите пароль">
+      </div>
+
+      <div class="mt-2">
+        <span class="log-indicator log-active" id="status_log_4">Текущий стиль: bootstrap</span>
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-warning" id="btn_set_rails_log_4">⚙️ setStyle('rails')</button>
+        <button class="btn btn-info" id="btn_set_bootstrap_log_4">⚙️ setStyle('bootstrap')</button>
+        <button class="btn btn-secondary" id="btn_set_custom_log_4">⚙️ setStyle('custom')</button>
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_style_log_4">📝 renderError()</button>
+        <button class="btn btn-info" id="btn_check_style_log_4">🔍 Проверить стиль</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="output_log_4">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Секция 5: Элементы без ID (warn) -->
+    <div class="test-section">
+      <h3>📍 Секция 5: Элементы без ID (logger.warn)</h3>
+
+      <div class="form-group">
+        <label>Поле без ID</label>
+        <input type="text" class="form-control" placeholder="У этого поля нет ID">
+      </div>
+
+      <div class="warning-box">
+        <strong>⚠️ Внимание:</strong> При инициализации FieldErrorRenderer для поля без ID будет logger.warn()
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_init_no_id">🔧 Инициализировать renderer</button>
+        <button class="btn btn-info" id="btn_check_no_id">🔍 Проверить логи</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="output_log_5">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Секция 6: Спецсимволы в ID (warn) -->
+    <div class="test-section">
+      <h3>📍 Секция 6: Спецсимволы в ID (logger.warn)</h3>
+
+      <div class="form-group" id="form:with:colons">
+        <label>Поле с двоеточиями в ID</label>
+        <input type="text" id="field:with:colons" class="form-control" placeholder="ID содержит :">
+      </div>
+
+      <div class="warning-box">
+        <strong>⚠️ Внимание:</strong> Спецсимволы в ID могут ломать селекторы
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_init_special_id">🔧 Инициализировать renderer</button>
+        <button class="btn btn-info" id="btn_check_special_id">🔍 Проверить логи</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="output_log_6">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="test-section">
+      <h3>📋 Консоль лог</h3>
+      <div class="event-log" id="console-log" style="max-height: 300px;"></div>
+      <div class="test-buttons">
+        <button class="btn btn-secondary" id="btn_clear_log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- Навигация по тестам -->
+    <div class="test-buttons">
+      <a href="test-03-legacy-templates.html" class="btn btn-outline-secondary">← Предыдущий тест</a>
+      <span class="text-muted mx-3">|</span>
+      <span class="text-muted">Все тесты FieldErrorRenderer пройдены ✅</span>
+    </div>
+  </div>
+
+  <!-- Подключение модуля (относительный путь!) -->
+  <script type="module">
+    import { FieldErrorRenderer } from '../../../modia/services/field-error-renderer.js';
+    import { logger } from '../../../modia/services/logger.js';
+
+    // ========================================
+    // Утилита для логирования на странице
+    // ========================================
+    function logToPage(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[FieldErrorRenderer Test] ${message}`);
+    }
+
+    // Перехват logger.info/warn/error для вывода на страницу
+    const originalInfo = logger.info;
+    const originalWarn = logger.warn;
+    const originalError = logger.error;
+
+    logger.info = function (message, context) {
+      logToPage(`[INFO] [${context || 'Test'}] ${message}`, 'info');
+      originalInfo.call(logger, message, context);
+    };
+
+    logger.warn = function (message, context) {
+      logToPage(`[WARN] [${context || 'Test'}] ${message}`, 'error');
+      originalWarn.call(logger, message, context);
+    };
+
+    logger.error = function (message, context) {
+      logToPage(`[ERROR] [${context || 'Test'}] ${message}`, 'error');
+      originalError.call(logger, message, context);
+    };
+
+    // ========================================
+    // Инициализация рендереров
+    // ========================================
+    const rendererLog1 = new FieldErrorRenderer($('#email_log'));
+    const rendererLog2 = new FieldErrorRenderer($('#name_log'));
+    const rendererLog3 = new FieldErrorRenderer($('#phone_log'));
+    const rendererLog4 = new FieldErrorRenderer($('#password_log'));
+
+    logToPage('FieldErrorRenderer инициализированы', 'success');
+
+    // ========================================
+    // Секция 1: Проверка логирования
+    // ========================================
+    $('#btn_render_log_1').on('click', function () {
+      rendererLog1.renderError('<span class="text-danger">Тестовая ошибка</span>');
+      $('#status_log_1').text('Логирование: renderError() вызван').removeClass('log-inactive').addClass('log-active');
+    });
+
+    $('#btn_clear_log_1').on('click', function () {
+      rendererLog1.clearError();
+      $('#status_log_1').text('Логирование: clearError() вызван').removeClass('log-active').addClass('log-inactive');
+    });
+
+    $('#btn_check_log_1').on('click', function () {
+      const logCount = $('#console-log div').length;
+      const output = {
+        'totalLogMessages': logCount,
+        'expected': [
+          '[INFO] [FieldErrorRenderer] Ошибка рендера: email_log → ...',
+          '[INFO] [FieldErrorRenderer] Очистка ошибок: email_log (preserveTemplates: true)'
+        ],
+        'status': logCount > 0 ? '✅ Логирование работает' : '❌ Логирование не работает'
+      };
+
+      $('#output_log_1').text(JSON.stringify(output, null, 2));
+      logToPage(`Проверено логов: ${logCount}`, 'success');
+    });
+
+    // ========================================
+    // Секция 2: Plain text wrapping
+    // ========================================
+    $('#btn_render_text_log_2').on('click', function () {
+      rendererLog2.renderError('Текст ошибки без HTML');
+      logToPage('renderError("Текст") вызван', 'info');
+    });
+
+    $('#btn_render_html_log_2').on('click', function () {
+      rendererLog2.renderError('<span class="text-danger">HTML ошибка</span>');
+      logToPage('renderError("<span>...</span>") вызван', 'info');
+    });
+
+    $('#btn_check_wrap_log_2').on('click', function () {
+      const $error = $('[data-modia-error^="form_log_2:"]').first();
+      if ($error.length) {
+        const output = {
+          'error.exists': true,
+          'error.tagName': $error[0].tagName,
+          'error.class': $error.attr('class'),
+          'error.html': $error.html(),
+          'wrapped': $error[0].tagName === 'SPAN' ? '✅ Текст обёрнут в SPAN' : 'ℹ️ HTML как есть'
+        };
+
+        $('#output_log_2').text(JSON.stringify(output, null, 2));
+        logToPage(`Обёртка проверена: ${$error[0].tagName}`, 'success');
+      } else {
+        $('#output_log_2').text('Ошибки не найдены. Нажмите renderError() сначала.');
+        logToPage('Ошибки не найдены', 'error');
+      }
+    });
+
+    // ========================================
+    // Секция 3: getLastErrorMessage()
+    // ========================================
+    $('#btn_render_msg_log_3').on('click', function () {
+      rendererLog3.renderError('<span class="text-danger">Последнее сообщение</span>');
+      logToPage('renderError() вызван', 'info');
+    });
+
+    $('#btn_get_msg_log_3').on('click', function () {
+      const lastMessage = rendererLog3.getLastErrorMessage();
+      const output = {
+        'getLastErrorMessage()': lastMessage,
+        'type': typeof lastMessage,
+        'status': lastMessage ? '✅ Сообщение получено' : '❌ Сообщение пустое'
+      };
+
+      $('#output_log_3').text(JSON.stringify(output, null, 2));
+      logToPage(`getLastErrorMessage(): ${lastMessage?.substring(0, 50)}`, 'success');
+    });
+
+    // ========================================
+    // Секция 4: setStyle()
+    // ========================================
+    $('#btn_set_rails_log_4').on('click', function () {
+      rendererLog4.setStyle('rails');
+      $('#status_log_4').text('Текущий стиль: rails').removeClass('log-active').addClass('log-active');
+      logToPage('setStyle("rails") вызван', 'info');
+    });
+
+    $('#btn_set_bootstrap_log_4').on('click', function () {
+      rendererLog4.setStyle('bootstrap');
+      $('#status_log_4').text('Текущий стиль: bootstrap');
+      logToPage('setStyle("bootstrap") вызван', 'info');
+    });
+
+    $('#btn_set_custom_log_4').on('click', function () {
+      rendererLog4.setStyle('custom');
+      $('#status_log_4').text('Текущий стиль: custom');
+      logToPage('setStyle("custom") вызван', 'info');
+    });
+
+    $('#btn_render_style_log_4').on('click', function () {
+      rendererLog4.renderError('<span class="text-danger">Ошибка со стилем</span>');
+      logToPage('renderError() вызван', 'info');
+    });
+
+    $('#btn_check_style_log_4').on('click', function () {
+      const output = {
+        'currentStyle': rendererLog4.currentStyle,
+        'errorClass': rendererLog4.currentStyle.errorClass,
+        'containerClass': rendererLog4.currentStyle.containerClass,
+        'messageClass': rendererLog4.currentStyle.messageClass
+      };
+
+      $('#output_log_4').text(JSON.stringify(output, null, 2));
+      logToPage(`Стиль проверен: ${JSON.stringify(rendererLog4.currentStyle.errorClass)}`, 'success');
+    });
+
+    // ========================================
+    // Секция 5: Элементы без ID
+    // ========================================
+    let rendererNoId = null;
+
+    $('#btn_init_no_id').on('click', function () {
+      const $field = $('input[placeholder="У этого поля нет ID"]');
+      rendererNoId = new FieldErrorRenderer($field);
+      logToPage('FieldErrorRenderer инициализирован для поля без ID', 'info');
+    });
+
+    $('#btn_check_no_id').on('click', function () {
+      const warnCount = $('#console-log .text-danger').length;
+      const output = {
+        'warnMessages': warnCount,
+        'expected': '[WARN] [FieldErrorRenderer] Требуется ID для errorScreen',
+        'status': warnCount > 0 ? '✅ Warn найден' : '❌ Warn не найден'
+      };
+
+      $('#output_log_5').text(JSON.stringify(output, null, 2));
+      logToPage(`Проверено warn сообщений: ${warnCount}`, 'success');
+    });
+
+    // ========================================
+    // Секция 6: Спецсимволы в ID
+    // ========================================
+    let rendererSpecialId = null;
+
+    $('#btn_init_special_id').on('click', function () {
+      const $field = $('#field\\:with\\:colons');
+      rendererSpecialId = new FieldErrorRenderer($field);
+      logToPage('FieldErrorRenderer инициализирован для поля со спецсимволами в ID', 'info');
+    });
+
+    $('#btn_check_special_id').on('click', function () {
+      const warnCount = $('#console-log .text-danger').length;
+      const output = {
+        'warnMessages': warnCount,
+        'expected': '[WARN] [FieldErrorRenderer] ID содержит спецсимволы',
+        'status': warnCount > 0 ? '✅ Warn найден' : '❌ Warn не найден'
+      };
+
+      $('#output_log_6').text(JSON.stringify(output, null, 2));
+      logToPage(`Проверено warn сообщений: ${warnCount}`, 'success');
+    });
+
+    // ========================================
+    // Утилиты
+    // ========================================
+    $('#btn_clear_log').on('click', function () {
+      $('#console-log').empty();
+      logToPage('Лог очищен', 'info');
+    });
+
+    // Начальное логирование
+    logToPage('Тест готов к работе', 'success');
+    logToPage('Откройте консоль браузера для просмотра логов logger', 'info');
+  </script>
+</body>
+
+</html>

@@ -1,17 +1,34 @@
 /**
  * FieldErrorRenderer
- * 
+ *
  * Ответственность: только отображение и очистка ошибок для одного элемента.
  * Не знает о правилах валидации, событиях или источниках текста.
  * Принимает готовый HTML и вставляет/удаляет его в DOM.
- * 
+ *
  * Улучшения в версии 1.1.0:
  * - Поддержка стилей ошибок (rails, bootstrap, custom)
  * - Обратная совместимость со старыми шаблонами (#error_span и т.д.)
  * - 5 уровней иерархии сообщений
  * 
  * @class FieldErrorRenderer
+ * @version 1.2.0
+ * @file modia/services/field-error-renderer.js
+ *
+ * @example
+ * // Базовое использование
+ * const renderer = new FieldErrorRenderer($('#email'));
+ * renderer.renderError('<span class="text-danger">Ошибка</span>');
+ * renderer.clearError();
+ *
+ * @example
+ * // Plain text (автоматически обернётся в <span>)
+ * renderer.renderError('Обязательное поле');
+ *
+ * @note
+ * Стили ошибок определяются в modia.css через селектор [data-modia-error].
+ * Дизайнер может переопределить стили через [data-modia-error="field"].
  */
+import { logger } from './logger.js';
 
 // ==================== КОНСТАНТЫ ПО УМОЛЧАНИЮ ====================
 // Эти значения используются, если не передан кастомный конфиг
@@ -19,6 +36,8 @@ export const DEFAULT_CONFIG = {
   containerSelectors: '.form-group, .input-group, .form-field',
   errorTemplateClass: '.error-template',
   errorClasses: '.text-danger, .invalid-feedback, .form-error-message',
+
+  errorMarker: 'data-modia-error',
 
   // Стили ошибок
   errorStyles: {
@@ -44,6 +63,9 @@ export const DEFAULT_CONFIG = {
 
   // Стиль по умолчанию
   defaultStyle: 'bootstrap',
+
+  defaultErrorTag: 'span',
+  defaultErrorClass: 'text-danger',
 
   // Селекторы для обратной совместимости (старый формат)
   legacyTemplates: {
@@ -85,6 +107,63 @@ export class FieldErrorRenderer {
 
     // Кэшируем контейнер при инициализации (один раз)
     this.$container = $errorScreen.closest(this.config.containerSelectors);
+
+    this._checkElementIds();
+
+    logger.info('FieldErrorRenderer инициализирован', 'FieldErrorRenderer');
+  }
+
+  _checkElementIds() {
+    const errorScreenId = this.$errorScreen.attr('id');
+    if (!errorScreenId) {
+      logger.warn(
+        `Требуется ID для errorScreen: ${this.$errorScreen[0]?.tagName}. ` +
+        `Назначьте id атрибут.`,
+        'FieldErrorRenderer'
+      );
+    } else {
+      this._validateId(errorScreenId, 'errorScreen');
+    }
+
+    if (this.$container.length) {
+      const containerId = this.$container.attr('id');
+      if (!containerId) {
+        logger.warn(
+          `Требуется ID для container: ${this.$container[0]?.tagName}. ` +
+          `Назначьте id атрибут.`,
+          'FieldErrorRenderer'
+        );
+      }
+    }
+  }
+
+  _validateId(id, type) {
+    const validPattern = /^[a-zA-Z0-9_-]+$/;
+    if (!validPattern.test(id)) {
+      logger.warn(
+        `ID содержит спецсимволы: ${id} (${type}). ` +
+        `Возможны проблемы с селекторами.`,
+        'FieldErrorRenderer'
+      );
+    }
+  }
+
+  _getFieldId() {
+    return this.$errorScreen.attr('id') || 'unknown-field';
+  }
+
+  _getContainerId() {
+    return this.$container.attr('id') || 'unknown-container';
+  }
+
+  _getErrorMarkerValue() {
+    const containerId = this._getContainerId();
+    const fieldId = this._getFieldId();
+
+    this._validateId(containerId, 'container');
+    this._validateId(fieldId, 'field');
+
+    return `${containerId}:${fieldId}`;
   }
 
   /**
@@ -93,9 +172,49 @@ export class FieldErrorRenderer {
    * @returns {boolean} true если ошибка уже отображается
    */
   hasError() {
+    const containerId = this._getContainerId();
+    const marker = this.config.errorMarker;
+    const selector = `[${marker}^="${containerId}:"]`;
+
+    // Проверяем в контейнере + siblings (как в clearError)
+    const hasErrorInContainer = this.$container.length
+      ? this.$container.find(selector).length > 0
+      : false;
+
+    const hasErrorInSiblings = this.$errorScreen.siblings(selector).length > 0;
+
     return this.$errorScreen.hasClass(this.currentStyle.errorClass) ||
       this.$errorScreen.parent().hasClass(this.currentStyle.containerClass) ||
-      this.$errorScreen.next('.field-error-message').length > 0;
+      hasErrorInContainer ||
+      hasErrorInSiblings;
+  }
+
+  _formatIncomingHtml(html) {
+    const $element = $(html);
+
+    if ($element.length === 0 || $element[0].nodeType === 3) {
+      logger.warn(
+        `[FieldErrorRenderer] Текст ошибки обёрнут в тег: ${html?.substring(0, 50)}`,
+        'FieldErrorRenderer'
+      );
+
+      return $('<span>')
+        .addClass(this.config.defaultErrorClass)
+        .html(html);
+    }
+
+    return $element;
+  }
+
+  _addErrorMarker($element) {
+    const markerValue = this._getErrorMarkerValue();
+    $element.attr(this.config.errorMarker, markerValue);
+
+    // Гибридный подход: ссылки для точечных операций
+    $element.data('modiaErrorField', this.$errorScreen[0]);
+    if (this.$container.length) {
+      $element.data('modiaErrorContainer', this.$container[0]);
+    }
   }
 
   /**
@@ -117,26 +236,40 @@ export class FieldErrorRenderer {
       this.clearError(false);
     }
 
+    const $element = this._formatIncomingHtml(html);
+    this._addErrorMarker($element);
+
     // Сохраняем сообщение
     this._lastErrorMessage = html;
+
+    logger.info(
+      `Ошибка рендера: ${this._getFieldId()} → ${html?.substring(0, 50)}...`,
+      'FieldErrorRenderer'
+    );
 
     // Добавляем класс .is-invalid для стилизации
     this.$errorScreen.addClass(this.currentStyle.errorClass);
 
     // Для Rails-стиля оборачиваем в .field_with_errors
-    if (this.currentStyle.containerClass && !this.$errorScreen.parent().hasClass(this.currentStyle.containerClass)) {
+    if (this.currentStyle.containerClass &&
+      !this.$errorScreen.parent().hasClass(this.currentStyle.containerClass)) {
       this.$errorScreen.wrap(`<div class="${this.currentStyle.containerClass}"></div>`);
     }
 
-    // Создаём элемент ошибки
-    const $errorElement = $(`<div class="field-error-message ${this.currentStyle.messageClass}"></div>`);
-    $errorElement.html(html);
+    // // Создаём элемент ошибки
+    // const $errorElement = $(`<div class="field-error-message ${this.currentStyle.messageClass}">${html}</div>`);
+    // // $errorElement.html(html);
+
+    // // Добавим стили Bootstrap по умолчанию
+    // if (this.currentStyle.messageClass === '') {
+    //   $errorElement.addClass('text-danger');
+    // }
 
     // Вставляем ошибку: в кэшированный контейнер или после элемента (fallback)
     if (this.$container.length) {
-      this.$container.append($errorElement);
+      this.$container.append($element);
     } else {
-      $errorElement.insertAfter(this.$errorScreen);
+      $element.insertAfter(this.$errorScreen);
     }
   }
 
@@ -148,18 +281,59 @@ export class FieldErrorRenderer {
    * @returns {void}
    */
   clearError(preserveTemplates = true) {
-    // Удаляем только динамические ошибки (не шаблоны)
-    this.$errorScreen.siblings(this.config.errorClasses).filter(function () {
-      return !$(this).closest(this.config.errorTemplateClass).length;
-    }.bind(this)).remove();
+    // // Удаляем только динамические ошибки (не шаблоны)
+    // this.$errorScreen.siblings(this.config.errorClasses).filter(function () {
+    //   return !$(this).closest(this.config.errorTemplateClass).length;
+    // }.bind(this)).remove();
 
-    // Убираем класс ошибки
-    this.$errorScreen.removeClass(this.currentStyle.errorClass);
+    const containerId = this._getContainerId();
+    const marker = this.config.errorMarker;
+    const fieldId = this._getFieldId();
 
-    // Убираем обёртку .field_with_errors для Rails-стиля
-    if (this.currentStyle.containerClass) {
+    logger.info(
+      `Очистка ошибок: ${fieldId} (preserveTemplates: ${preserveTemplates})`,
+      'FieldErrorRenderer'
+    );
+
+    // Ищем в контейнере + siblings (покрываем оба сценария вставки)
+    let $errors;
+    if (this.$container.length) {
+      $errors = this.$container.find(`[${marker}^="${containerId}:"]`);
+    } else {
+      $errors = this.$errorScreen.siblings(`[${marker}^="${containerId}:"]`);
+    }
+
+    if (preserveTemplates) {
+      $errors.filter(function () {
+        return !$(this).closest(this.config.errorTemplateClass).length;
+      }.bind(this)).remove();
+    } else {
+      $errors.remove();
+    }
+
+
+    // Удаляем ВСЕ классы ошибок из всех стилей
+    const allErrorClasses = Object.values(this.config.errorStyles)
+      .map(style => style.errorClass)
+      .filter(cls => cls) // убираем пустые строки
+      .join(' ');
+
+    this.$errorScreen.removeClass(allErrorClasses);
+
+    // ✅ ИСПРАВЛЕНО: Удаляем ВСЕ обёртки контейнеров из всех стилей
+    const allContainerClasses = Object.values(this.config.errorStyles)
+      .map(style => style.containerClass)
+      .filter(cls => cls)
+      .join(' ');
+
+    if (allContainerClasses) {
       const $parent = this.$errorScreen.parent();
-      if ($parent.hasClass(this.currentStyle.containerClass)) {
+      const parentClasses = $parent.attr('class') || '';
+      const hasContainerClass = allContainerClasses.split(' ').some(cls =>
+        parentClasses.includes(cls)
+      );
+
+      if (hasContainerClass) {
         $parent.replaceWith(this.$errorScreen);
       }
     }
@@ -183,6 +357,7 @@ export class FieldErrorRenderer {
   setStyle(styleName) {
     if (this.config.errorStyles[styleName]) {
       this.currentStyle = this.config.errorStyles[styleName];
+      logger.info(`Стиль установлен: ${styleName}`, 'FieldErrorRenderer');
     }
   }
 }

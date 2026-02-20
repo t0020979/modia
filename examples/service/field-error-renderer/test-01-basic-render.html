@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест FieldErrorRenderer (Базовый рендер)</title>
+
+  <!-- jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- Modia CSS -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <!-- Примеры CSS -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <style>
+    .test-field-container {
+      border: 2px solid #007bff;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+
+    .error-status {
+      font-weight: bold;
+      padding: 5px 10px;
+      border-radius: 3px;
+      display: inline-block;
+      min-width: 150px;
+    }
+
+    .error-status.has-error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .error-status.no-error {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .marker-output {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест FieldErrorRenderer Service</h1>
+    <p class="text-muted">Базовый рендер + очистка + идемпотентность</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li><code>renderError()</code> вставляет ошибку в DOM</li>
+        <li><code>clearError()</code> удаляет ошибку</li>
+        <li><code>hasError()</code> возвращает <code>true/false</code> корректно</li>
+        <li>Повторный <code>renderError()</code> очищает предыдущую ошибку (идемпотентность)</li>
+        <li>Ошибка вставляется в <code>.form-group</code> (контейнер)</li>
+        <li>При отсутствии контейнера — fallback: после поля</li>
+        <li>Атрибут <code>data-modia-error="containerId:fieldId"</code> добавляется</li>
+        <li>Логирование: <code>logger.info()</code> при рендере и очистке</li>
+      </ul>
+    </div>
+
+    <!-- Секция 1: Базовый рендер с контейнером -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Базовый рендер (с контейнером)</h3>
+
+      <div class="form-group" id="form_1">
+        <label for="email">Email *</label>
+        <input type="email" id="email" class="form-control" placeholder="test@example.com">
+        <!-- Ошибка будет вставлена сюда -->
+      </div>
+
+      <div class="mt-3">
+        <span class="error-status no-error" id="status_1">hasError(): false</span>
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_1">📝 renderError()</button>
+        <button class="btn btn-secondary" id="btn_clear_1">🗑️ clearError()</button>
+        <button class="btn btn-info" id="btn_check_1">🔍 Проверить hasError()</button>
+      </div>
+    </div>
+
+    <!-- Секция 2: Рендер без контейнера (fallback) -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Fallback (без контейнера)</h3>
+
+      <input type="text" id="phone" class="form-control" placeholder="Телефон">
+      <!-- Ошибка будет вставлена после поля (нет .form-group) -->
+
+      <div class="mt-3">
+        <span class="error-status no-error" id="status_2">hasError(): false</span>
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_2">📝 renderError()</button>
+        <button class="btn btn-secondary" id="btn_clear_2">🗑️ clearError()</button>
+      </div>
+    </div>
+
+    <!-- Секция 3: Идемпотентность -->
+    <div class="test-section">
+      <h3>📍 Секция 3: Идемпотентность (повторный рендер)</h3>
+
+      <div class="form-group" id="form_2">
+        <label for="password">Пароль *</label>
+        <input type="password" id="password" class="form-control">
+      </div>
+
+      <div class="mt-3">
+        <span class="error-status no-error" id="status_3">Ошибок в DOM: 0</span>
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_3">📝 renderError() × 3 раза</button>
+        <button class="btn btn-info" id="btn_count_3">🔍 Посчитать ошибки в DOM</button>
+      </div>
+    </div>
+
+    <!-- Секция 4: Проверка маркеров -->
+    <div class="test-section">
+      <h3>📍 Секция 4: Проверка data-атрибутов</h3>
+
+      <div class="form-group" id="form_3">
+        <label for="username">Имя пользователя *</label>
+        <input type="text" id="username" class="form-control">
+      </div>
+
+      <div class="test-buttons">
+        <button class="btn btn-primary" id="btn_render_4">📝 renderError()</button>
+        <button class="btn btn-info" id="btn_check_marker_4">🔍 Проверить data-modia-error</button>
+      </div>
+
+      <div class="mt-3">
+        <div class="marker-output" id="marker_output">Ожидание...</div>
+      </div>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="test-section">
+      <h3>📋 Консоль лог</h3>
+      <div class="event-log" id="console-log" style="max-height: 300px;"></div>
+      <div class="test-buttons">
+        <button class="btn btn-secondary" id="btn_clear_log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- Навигация по тестам -->
+    <div class="test-buttons">
+      <a href="test-02-styles.html" class="btn btn-outline-primary">Следующий тест: Стили →</a>
+    </div>
+  </div>
+
+  <!-- Подключение модуля (относительный путь!) -->
+  <script type="module">
+    import { FieldErrorRenderer } from '../../../modia/services/field-error-renderer.js';
+    import { logger } from '../../../modia/services/logger.js';
+
+    // ========================================
+    // Утилита для логирования на странице
+    // ========================================
+    function logToPage(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[FieldErrorRenderer Test] ${message}`);
+    }
+
+    // Перехват logger.info/warn/error для вывода на страницу
+    const originalInfo = logger.info;
+    const originalWarn = logger.warn;
+    const originalError = logger.error;
+
+    logger.info = function (message, context) {
+      logToPage(`[INFO] [${context || 'Test'}] ${message}`, 'info');
+      originalInfo.call(logger, message, context);
+    };
+
+    logger.warn = function (message, context) {
+      logToPage(`[WARN] [${context || 'Test'}] ${message}`, 'error');
+      originalWarn.call(logger, message, context);
+    };
+
+    logger.error = function (message, context) {
+      logToPage(`[ERROR] [${context || 'Test'}] ${message}`, 'error');
+      originalError.call(logger, message, context);
+    };
+
+    // ========================================
+    // Инициализация рендереров
+    // ========================================
+    const renderer1 = new FieldErrorRenderer($('#email'));
+    const renderer2 = new FieldErrorRenderer($('#phone'));
+    const renderer3 = new FieldErrorRenderer($('#password'));
+    const renderer4 = new FieldErrorRenderer($('#username'));
+
+    logToPage('FieldErrorRenderer инициализированы', 'success');
+
+    // ========================================
+    // Утилита обновления статуса
+    // ========================================
+    function updateStatus(elementId, hasError) {
+      const $el = $('#' + elementId);
+      $el.removeClass('has-error no-error')
+        .addClass(hasError ? 'has-error' : 'no-error')
+        .text(`hasError(): ${hasError}`);
+    }
+
+    // ========================================
+    // Секция 1: Базовый рендер с контейнером
+    // ========================================
+    $('#btn_render_1').on('click', function () {
+      renderer1.renderError('<span class="text-danger">Некорректный email адрес</span>');
+      updateStatus('status_1', renderer1.hasError());
+    });
+
+    $('#btn_clear_1').on('click', function () {
+      renderer1.clearError();
+      updateStatus('status_1', renderer1.hasError());
+    });
+
+    $('#btn_check_1').on('click', function () {
+      // ✅ ИСПРАВЛЕНО: Теперь есть визуальная реакция
+      const hasError = renderer1.hasError();
+      updateStatus('status_1', hasError);
+      logToPage(`hasError() проверка: ${hasError}`, hasError ? 'success' : 'info');
+    });
+
+    // ========================================
+    // Секция 2: Fallback без контейнера
+    // ========================================
+    $('#btn_render_2').on('click', function () {
+      renderer2.renderError('<span class="text-danger">Введите телефон</span>');
+      updateStatus('status_2', renderer2.hasError());
+    });
+
+    $('#btn_clear_2').on('click', function () {
+      renderer2.clearError();
+      updateStatus('status_2', renderer2.hasError());
+    });
+
+    // ========================================
+    // Секция 3: Идемпотентность
+    // ========================================
+    $('#btn_render_3').on('click', function () {
+      renderer3.renderError('<span class="text-danger">Ошибка 1</span>');
+      renderer3.renderError('<span class="text-danger">Ошибка 2</span>');
+      renderer3.renderError('<span class="text-danger">Ошибка 3</span>');
+      logToPage('renderError() вызван 3 раза', 'info');
+    });
+
+    $('#btn_count_3').on('click', function () {
+      const errorCount = $('[data-modia-error^="form_2:"]').length;
+      $('#status_3').removeClass('has-error no-error')
+        .addClass(errorCount === 1 ? 'no-error' : 'has-error')
+        .text(`Ошибок в DOM: ${errorCount}`);
+      logToPage(`Найдено ошибок: ${errorCount} (ожидалось: 1)`, errorCount === 1 ? 'success' : 'error');
+    });
+
+    // ========================================
+    // Секция 4: Проверка маркеров
+    // ========================================
+    $('#btn_render_4').on('click', function () {
+      renderer4.renderError('<span class="text-danger">Имя слишком короткое</span>');
+    });
+
+    $('#btn_check_marker_4').on('click', function () {
+      const $error = $('[data-modia-error^="form_3:"]').first();
+      if ($error.length) {
+        const marker = $error.attr('data-modia-error');
+        const fieldData = $error.data('modiaErrorField');
+        const containerData = $error.data('modiaErrorContainer');
+
+        const output = {
+          'data-modia-error': marker,
+          'data("modiaErrorField")': fieldData ? fieldData.tagName : 'null',
+          'data("modiaErrorContainer")': containerData ? containerData.tagName : 'null',
+          'HTML': $error[0].outerHTML
+        };
+
+        $('#marker_output').text(JSON.stringify(output, null, 2));
+        logToPage(`Маркер проверен: ${marker}`, 'success');
+      } else {
+        $('#marker_output').text('Ошибки не найдены. Нажмите renderError() сначала.');
+        logToPage('Ошибки не найдены', 'error');
+      }
+    });
+
+    // ========================================
+    // Утилиты
+    // ========================================
+    $('#btn_clear_log').on('click', function () {
+      $('#console-log').empty();
+      logToPage('Лог очищен', 'info');
+    });
+
+    // Начальное логирование
+    logToPage('Тест готов к работе', 'success');
+    logToPage('Откройте консоль браузера для просмотра логов logger', 'info');
+  </script>
+</body>
+
+</html>

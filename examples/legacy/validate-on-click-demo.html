@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Legacy Validate-on-Click Demo</title>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ jQuery 3.5.1 CDN -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Стили для примера -->
+  <style>
+    body {
+      background-color: #f5f6fa;
+      padding: 20px;
+    }
+
+    .card {
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      background-color: #fff;
+      border-bottom: 1px solid #e9ecef;
+      font-weight: 600;
+    }
+
+    .form-label {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    .text-danger {
+      color: #dc3545 !important;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .is-invalid {
+      border-color: #dc3545 !important;
+      background-color: #ffe6e6 !important;
+    }
+
+    .error-template {
+      display: none;
+    }
+
+    .console-log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+
+    .btn {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Legacy Validate-on-Click Demo</h1>
+    <p class="text-muted">Пример воспроизведения поведения валидации из продакшена</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result card p-3 mb-4">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li>Клик на "Сохранить" → валидация всех [required] полей</li>
+        <li>Пустое required поле → красный текст "не может быть пустым"</li>
+        <li>Пустое required поле → розовый фон input (.is-invalid)</li>
+        <li>Валидация останавливается на первой ошибке</li>
+        <li>Скрытые/отключённые поля пропускаются</li>
+        <li>Поддержка data-input-field для внешних источников</li>
+      </ul>
+    </div>
+
+    <!-- Форма с валидацией -->
+    <div class="card">
+      <h6 class="card-header">Общие сведения</h6>
+      <div class="card-body">
+        <form id="regulated_query_form">
+
+          <!-- Наименование -->
+          <div class="form-group">
+            <label class="form-label" for="name">* Наименование</label>
+            <input type="text" class="form-control" id="name" name="name" required
+              placeholder="Введите полное наименование">
+            <!-- Ошибка будет добавлена сюда -->
+          </div>
+
+          <!-- Дата начала действия -->
+          <div class="form-group">
+            <label class="form-label" for="published_at">* Дата начала действия РЗ</label>
+            <input type="text" class="form-control datepicker-base" id="published_at" name="published_at" required
+              placeholder="ДД.ММ.ГГГГ">
+            <!-- Ошибка будет добавлена сюда -->
+          </div>
+
+          <!-- Дата окончания действия (не required) -->
+          <div class="form-group">
+            <label class="form-label" for="published_till">Дата окончания действия РЗ</label>
+            <input type="text" class="form-control" id="published_till" name="published_till"
+              placeholder="Укажите дату окончания">
+          </div>
+
+          <!-- Описание -->
+          <div class="form-group">
+            <label class="form-label" for="description">* Описание</label>
+            <textarea class="form-control" id="description" name="description" rows="5" required
+              placeholder="Введите описание запроса"></textarea>
+            <!-- Ошибка будет добавлена сюда -->
+          </div>
+
+          <!-- Скрытое поле с внешним источником -->
+          <div class="form-group">
+            <label class="form-label">* Область применения (скрытое поле)</label>
+            <div class="visible-field" data-input-field="#hidden_data_scope">
+              <select class="form-control" id="data_scope_select">
+                <option value="">Не выбрано</option>
+                <option value="1">Межведомственное взаимодействие</option>
+                <option value="2">Прием заявлений с ЕПГУ</option>
+              </select>
+            </div>
+            <input type="hidden" id="hidden_data_scope" name="data_scope" required>
+          </div>
+
+          <!-- Ограничение на исполнение -->
+          <div class="form-group">
+            <label class="form-label" for="execution_restriction">* Ограничение на исполнение запроса</label>
+            <select class="form-control" id="execution_restriction" name="execution_restriction" required>
+              <option value="">Не выбрано</option>
+              <option value="adaptive">Динамическое исполнение</option>
+              <option value="parallel">Параллельное исполнение</option>
+              <option value="fixedSequence">Фиксированная последовательность</option>
+            </select>
+            <!-- Ошибка будет добавлена сюда -->
+          </div>
+
+          <!-- Кнопки -->
+          <div class="mt-4">
+            <button type="button" class="btn btn-primary validate-on-click">Сохранить</button>
+            <button type="button" class="btn btn-outline-primary" onclick="history.back()">Отмена</button>
+            <button type="button" class="btn btn-secondary" id="btn-clear">Очистить ошибки</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Шаблоны ошибок (невидимые) -->
+    <div class="error-template" id="error_span">
+      <span class="text-danger">не может быть пустым</span>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="card mt-4">
+      <h6 class="card-header">📋 Консоль лог</h6>
+      <div class="card-body">
+        <div id="console-log" class="console-log bg-light p-3">
+          <small class="text-muted">Логи появятся здесь...</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Статус -->
+    <div class="card mt-4">
+      <h6 class="card-header">📊 Статус валидации</h6>
+      <div class="card-body">
+        <div id="validation-status">
+          <span class="badge badge-secondary">Ожидание</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // Утилиты логирования
+    // ============================================
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger' : type === 'success' ? 'text-success' : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Validate-on-Click] ${message}`);
+    }
+
+    function updateStatus(isValid, message) {
+      const $status = $('#validation-status');
+      if (isValid === null) {
+        $status.html('<span class="badge badge-secondary">Ожидание</span>');
+      } else if (isValid) {
+        $status.html('<span class="badge badge-success">✅ Валидно</span> ' + message);
+      } else {
+        $status.html('<span class="badge badge-danger">❌ Ошибка</span> ' + message);
+      }
+    }
+
+    // ============================================
+    // Функции из legacy-кода
+    // ============================================
+
+    /**
+     * Находит ближайший контейнер валидации
+     */
+    function closestValidationContainer(event) {
+      const $target = $(event.target);
+      const $form = $target.closest('form');
+      if ($form.length > 0) {
+        return $form;
+      }
+      return $target.closest('[data-component="validation"]') || $('body');
+    }
+
+    /**
+     * Очищает все ошибки в контексте
+     */
+    function clearErrorsContext(event) {
+      const form_object = closestValidationContainer(event);
+      form_object.find('.text-danger').remove();
+      form_object.find('.is-invalid').removeClass('is-invalid');
+      log('Ошибки очищены');
+    }
+
+    /**
+     * Получает значение поля (поддержка contenteditable)
+     */
+    function getFieldValue($field) {
+      if ($field.is('[contenteditable]')) {
+        return $field.text().trim();
+      }
+      return $field.val();
+    }
+
+    // ============================================
+    // Основная валидация (воспроизведение legacy)
+    // ============================================
+    $(document).ready(function () {
+      log('✅ Document ready');
+      log('📋 Обработчик .validate-on-click зарегистрирован');
+
+      $('body').on('click', '.validate-on-click', function (event) {
+        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        log('🖱️ Клик на .validate-on-click');
+
+        const form_object = closestValidationContainer(event);
+        log('📦 Контейнер валидации:', form_object[0].tagName);
+
+        clearErrorsContext(event);
+
+        let firstErrorField = null;
+        let errorCount = 0;
+
+        for (var i = 0, len = form_object.find('[required]').length; i < len; i++) {
+          let required_field = $(form_object.find('[required]')[i]);
+          let value_field, has_error;
+
+          log(`🔍 Проверка поля [${i + 1}/${len}]:`, required_field.attr('id') || required_field.attr('name'));
+
+          // Пропускаем скрытые и отключённые поля
+          if ($(required_field).is(":hidden") || $(required_field).is(":disabled")) {
+            log('⊘ Пропущено (скрытое или отключённое)');
+            continue;
+          }
+
+          // Находим form-group
+          let form_group = required_field.closest('.form-group');
+          if (form_group.length == 0) {
+            form_group = required_field.find('.form-group');
+          }
+
+          // Очищаем предыдущие ошибки в этой группе
+          form_group.children('.text-danger').remove();
+
+          // Определяем источник значения (поддержка data-input-field)
+          if ($(required_field.data('input-field')).length > 0) {
+            value_field = $(required_field.data('input-field'));
+            log('📍 Источник значения: data-input-field →', value_field.attr('id'));
+          } else {
+            value_field = required_field;
+          }
+
+          // Проверка значения
+          if (value_field.length > 1) {
+            // Массив полей (например, name='tags[]')
+            has_error = $.inArray(true, $.map(value_field, function (val, key) {
+              return $(val).val() != '';
+            })) === -1;
+            log('📊 Массив полей, has_error:', has_error);
+          } else {
+            // Одиночное поле
+            const fieldValue = getFieldValue($(value_field));
+            has_error = (fieldValue === '' || fieldValue === null);
+            log('📊 Одиночное поле, значение:', fieldValue, ', has_error:', has_error);
+          }
+
+          // Если ошибка
+          if (has_error) {
+            log('❌ ОШИБКА: поле не заполнено');
+
+            // Добавляем класс ошибки
+            value_field.addClass('is-invalid');
+
+            // Добавляем текст ошибки из шаблона
+            form_group.append($('#error_span').html());
+
+            // Запоминаем первое ошибочное поле
+            if (!firstErrorField) {
+              firstErrorField = required_field;
+            }
+
+            errorCount++;
+
+            // ⚠️ Останавливаем валидацию на первой ошибке (как в legacy)
+            log('⏹️ Остановка на первой ошибке (stopImmediatePropagation)');
+            event.stopImmediatePropagation();
+            event.preventDefault();
+
+            break; // Выход из цикла
+          } else {
+            log('✅ Поле валидно');
+          }
+        }
+
+        // Итоговый статус
+        if (errorCount > 0) {
+          log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+          log(`❌ Валидация НЕ пройдена. Ошибок: ${errorCount}`);
+          updateStatus(false, `Найдено ${errorCount} ошибок`);
+        } else {
+          log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+          log(`✅ Валидация пройдена. Все поля заполнены.`);
+          updateStatus(true, 'Форма готова к отправке');
+
+          // Здесь можно отправить форму
+          // form_object.submit();
+        }
+      });
+
+      // Кнопка очистки ошибок
+      $('#btn-clear').on('click', function () {
+        log('🧹 Очистка ошибок по кнопке');
+        $('.text-danger').remove();
+        $('.is-invalid').removeClass('is-invalid');
+        updateStatus(null);
+      });
+
+      // Подсветка статуса при вводе
+      $('form').on('input', 'input, textarea, select', function () {
+        const $field = $(this);
+        if ($field.val() && $field.val().trim() !== '') {
+          $field.removeClass('is-invalid');
+          $field.closest('.form-group').children('.text-danger').remove();
+        }
+      });
+
+      // Инициализация
+      updateStatus(null);
+      log('🚀 Пример готов к работе. Нажмите "Сохранить" для валидации.');
+    });
+  </script>
+</body>
+
+</html>

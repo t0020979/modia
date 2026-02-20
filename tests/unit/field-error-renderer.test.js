@@ -11,8 +11,8 @@ describe('FieldErrorRenderer', () => {
 
   beforeEach(() => {
     // Создаём DOM для тестов
-    $container = $('<div class="form-group"></div>');
-    $errorScreen = $('<input type="text" name="test" class="form-control">');
+    $container = $('<div></div>');
+    $errorScreen = $('<input type="text" class="form-control">');
     $container.append($errorScreen);
     $('body').append($container);
 
@@ -26,7 +26,7 @@ describe('FieldErrorRenderer', () => {
   });
 
   describe('_formatMessage', () => {
-    test('подстановка параметров в шаблон (__COUNT__ → 255)', () => {
+    test('подстановка параметров в шаблон (COUNT → 255)', () => {
       const message = 'Максимальная длина: __COUNT__ символов';
       const params = { COUNT: 255 };
 
@@ -134,7 +134,6 @@ describe('FieldErrorRenderer', () => {
   describe('setStyle', () => {
     test('устанавливает стиль ошибок (bootstrap)', () => {
       renderer.setStyle('bootstrap');
-
       // Проверяем, что стиль изменился
       // (текущий стиль хранится в renderer.currentStyle)
       expect(renderer.currentStyle).toEqual(DEFAULT_CONFIG.errorStyles.bootstrap);
