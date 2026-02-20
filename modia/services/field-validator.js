@@ -28,16 +28,29 @@ export class FieldValidator {
   constructor($valueSource, $errorScreen, $root, validationRules, errorRenderer) {
     // ✅ Проверка обязательного $valueSource
     if (!$valueSource || $valueSource.length === 0) {
+      logger.error('[FieldValidator] $valueSource is required', 'FieldValidator');
       throw new Error('[FieldValidator] $valueSource is required');
     }
 
     // ✅ Проверка обязательного errorRenderer (без fallback!)
     if (!errorRenderer) {
+      logger.error('[FieldValidator] errorRenderer is required', 'FieldValidator');
       throw new Error('[FieldValidator] errorRenderer is required');
     }
 
     this.$valueSource = $valueSource;
-    this.$errorScreen = $errorScreen || $valueSource.first();
+
+    // ⚠️ Предупреждение если $errorScreen не передан (fallback)
+    if (!$errorScreen || $errorScreen.length === 0) {
+      logger.warn(
+        '[FieldValidator] $errorScreen не передан, используем fallback на $valueSource.first()',
+        'FieldValidator'
+      );
+      this.$errorScreen = $valueSource.first();
+    } else {
+      this.$errorScreen = $errorScreen;
+    }
+
     this.$root = $root;
     this.validationRules = validationRules;
     this.errorRenderer = errorRenderer;
@@ -54,8 +67,18 @@ export class FieldValidator {
    * @returns {string}
    */
   _getFieldIdentifier() {
-    const id = this.$valueSource.attr('id') || 'unknown';
+    const id = this.$valueSource.attr('id');
     const name = this.$valueSource.attr('name') || 'unnamed';
+
+    // ⚠️ НОВОЕ: Предупреждение об отсутствии ID
+    if (!id) {
+      logger.warn(
+        `Поле не имеет id атрибута [name=${name}]. Рекомендуется добавить id для лучшей отладки.`,
+        'FieldValidator'
+      );
+      return `__no_id__[name=${name}]`;
+    }
+
     return `#${id}[name=${name}]`;
   }
 
@@ -95,10 +118,20 @@ export class FieldValidator {
 
     // Contenteditable элементы - используем .text() для безопасности
     if (this.$valueSource.is('[contenteditable]')) {
-      return this.$valueSource.text().trim();
+      const text = this.$valueSource.text().trim();
+
+      // ⚠️ Предупреждение если есть HTML-теги в contenteditable
+      const html = this.$valueSource.html();
+      if (html !== text && html.includes('<')) {
+        logger.warn(
+          `Contenteditable поле содержит HTML-теги, используется только текст: ${this._getFieldIdentifier()}`,
+          'FieldValidator'
+        );
+      }
+
+      return text;
     }
 
-    // Fallback
     return '';
   }
 
@@ -122,7 +155,18 @@ export class FieldValidator {
       return this.$valueSource.is(rule.selector);
     });
 
-    logger.info(`Загружено правил: ${this.applicableRules.length} для ${this._getFieldIdentifier()}`, 'FieldValidator');
+    logger.info(
+      `Загружено правил: ${this.applicableRules.length} для ${this._getFieldIdentifier()}`,
+      'FieldValidator'
+    );
+
+    // ⚠️ Предупреждение если правил не найдено
+    if (this.applicableRules.length === 0) {
+      logger.warn(
+        `Не найдено правил валидации для поля: ${this._getFieldIdentifier()}`,
+        'FieldValidator'
+      );
+    }
   }
 
   /**
@@ -257,9 +301,7 @@ export class FieldValidator {
   _getInlineErrorMessage(ruleName) {
     const attrName = `data-error-text-${ruleName}`;
     const message = this.$valueSource.attr(attrName);
-    if (!message) {
-      return null;
-    }
+    if (!message) return null;
     return this._formatErrorMessage(message);
   }
 
@@ -306,9 +348,7 @@ export class FieldValidator {
    * @returns {string|null}
    */
   _resolveDefaultMessage(defaultMessage, params) {
-    if (!defaultMessage) {
-      return null;
-    }
+    if (!defaultMessage) return null;
 
     let message;
     if (typeof defaultMessage === 'function') {
