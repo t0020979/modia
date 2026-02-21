@@ -200,6 +200,11 @@ export class FieldValidator {
    * 
    * @returns {boolean} true если поле валидно, false если есть ошибка
    */
+  /**
+  Валидирует поле по всем подходящим правилам
+  Останавливается на первой ошибке
+  @returns {boolean} true если поле валидно, false если есть ошибка
+  */
   validate() {
     // Пропускаем скрытые поля
     if (!this.isVisibleForValidation()) {
@@ -210,45 +215,50 @@ export class FieldValidator {
     // Очищаем старые ошибки перед валидацией (идемпотентность)
     this.errorRenderer.clearError();
 
+    // ← ДИАГНОСТИКА: Логируем состояние перед валидацией
+    console.log('[DEBUG validate] ====== НАЧАЛО ======');
+    console.log('[DEBUG validate] $valueSource:', this.$valueSource);
+    console.log('[DEBUG validate] $valueSource.length:', this.$valueSource.length);
+    console.log('[DEBUG validate] getFieldValue():', this.getFieldValue());
+    console.log('[DEBUG validate] applicableRules:', this.applicableRules?.map(r => r.name));
+    console.log('[DEBUG validate] applicableRules.length:', this.applicableRules?.length);
+
     // Применяем правила по порядку
     for (const rule of this.applicableRules) {
+      console.log(`[DEBUG validate] Проверка правила: ${rule.name}`);
+
       // Guard: проверка наличия validate
       if (typeof rule.validate !== 'function') {
-        logger.warn(
-          `Правило "${rule.name || 'unknown'}" не имеет метода validate, пропускается`,
-          'FieldValidator'
-        );
+        console.warn(`[DEBUG validate] Правило "${rule.name}" не имеет метода validate`);
         continue;
       }
 
       const result = rule.validate(this.$valueSource, this);
 
+      console.log(`[DEBUG validate] Правило ${rule.name} вернуло:`, result);
+      console.log(`[DEBUG validate] typeof result:`, typeof result);
+      console.log(`[DEBUG validate] result === false:`, result === false);
+      console.log(`[DEBUG validate] result && !result.valid:`, result && !result.valid);
+
       // Явная проверка что правило НЕ прошло
       const ruleFailed = (result === false) || (result && result.valid === false);
 
+      console.log(`[DEBUG validate] ruleFailed:`, ruleFailed);
+
       if (ruleFailed) {
         const params = result && result.params ? result.params : {};
-
-        // Получаем сообщение об ошибке (с логированием уровня)
         const { message, level } = this._getErrorMessageWithLevel(rule, params);
-
-        // Рендерим ошибку
         this.errorRenderer.renderError(message);
-
-        // ← Лог рендера ошибки (важно для отладки)
-        logger.info(`renderError() вызван: ${message?.substring(0, 50)}`, 'FieldValidator');
-
-        // Логируем в зависимости от уровня (warn/error для проблем конфигурации)
         this._logErrorLevel(rule.name, level);
-
+        console.log('[DEBUG validate] ====== КОНЕЦ (ошибка) ======');
         return false;
       }
     }
 
-    // ← Лог успеха (итог валидации)
-    logger.success(`Поле валидно: ${this._getFieldIdentifier()}`, 'FieldValidator');
+    console.log('[DEBUG validate] ====== КОНЕЦ (успех) ======');
+    logger.info(`Поле валидно: ${this._getFieldIdentifier()}`, 'FieldValidator');
     return true;
-    }
+  }
 
   /**
    * Получает сообщение об ошибке с определением уровня
