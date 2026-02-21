@@ -116,15 +116,33 @@ export class FieldValidator {
    * 
    * @returns {string|Array<string>} Значение поля или массив значений
    */
+  /**
+  Получает значение поля
+  @returns {string|Array} Значение поля или массив значений
+  */
   getFieldValue() {
     // Сценарий 1: Массив полей
     if (this.$valueSource.length > 1) {
       return this.$valueSource.toArray().map(element => {
         const $el = $(element);
         const tagName = $el[0].tagName.toLowerCase();
-        if (tagName === 'input' || tagName === 'select') {
-          return $el.val() || '';  // ← Возвращаем '' вместо null
+
+        if (tagName === 'input') {
+          const type = $el.attr('type');
+
+          // Checkbox/Radio — проверяем checked
+          if (type === 'checkbox' || type === 'radio') {
+            return $el.is(':checked') ? $el.val() : '';
+          }
+
+          // Остальные input
+          return $el.val() || '';
         }
+
+        if (tagName === 'select') {
+          return $el.val() || '';
+        }
+
         return '';
       });
     }
@@ -132,8 +150,20 @@ export class FieldValidator {
     // Сценарий 2: Одиночное поле
     const tagName = this.$valueSource[0].tagName.toLowerCase();
 
-    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
-      return this.$valueSource.val() || '';  // ← Возвращаем '' вместо null/undefined
+    if (tagName === 'input') {
+      const type = this.$valueSource.attr('type');
+
+      // Checkbox/Radio — проверяем checked
+      if (type === 'checkbox' || type === 'radio') {
+        return this.$valueSource.is(':checked') ? this.$valueSource.val() : '';
+      }
+
+      // Остальные input
+      return this.$valueSource.val() || '';
+    }
+
+    if (tagName === 'textarea' || tagName === 'select') {
+      return this.$valueSource.val() || '';
     }
 
     if (this.$valueSource.is('[contenteditable]')) {
@@ -142,7 +172,6 @@ export class FieldValidator {
 
     return '';
   }
-
   /**
    * Проверяет, видимо ли поле для валидации
    * Пропускает скрытые и отключённые поля
@@ -241,7 +270,8 @@ export class FieldValidator {
       console.log(`[DEBUG validate] result && !result.valid:`, result && !result.valid);
 
       // Явная проверка что правило НЕ прошло
-      const ruleFailed = (result === false) || (result && result.valid === false);
+      //       const ruleFailed = (result === false) || (result && result.valid === false);
+      const ruleFailed = (result === false) || (typeof result === 'object' && result.valid === false);
 
       console.log(`[DEBUG validate] ruleFailed:`, ruleFailed);
 
