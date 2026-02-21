@@ -15,9 +15,8 @@ describe('FieldValidator', () => {
 
   beforeEach(() => {
     // Создаём DOM для тестов
-    $container = $('<form data-component="validation"></form>');
+    $container = $('<div></div>');
     $root = $container;
-
     $field = $('<input type="text" name="test" required>');
     $container.append($field);
 
@@ -35,7 +34,6 @@ describe('FieldValidator', () => {
   describe('getFieldValue', () => {
     test('возвращает значение для одиночного поля', () => {
       $field.val('test value');
-
       const value = validator.getFieldValue();
 
       expect(value).toBe('test value');
@@ -93,9 +91,7 @@ describe('FieldValidator', () => {
 
   describe('_getSeparateTemplateMessage', () => {
     test('находит старый шаблон #error_span для правила required', () => {
-      // Добавляем старый шаблон
       $container.append('<div class="invisible" id="error_span"><span class="text-danger">Обязательное поле</span></div>');
-
       const message = validator._getSeparateTemplateMessage('required', {});
 
       expect(message).toContain('Обязательное поле');
@@ -124,7 +120,6 @@ describe('FieldValidator', () => {
           <span class="text-danger" data-rule="required">Заполните поле</span>
         </div>
       `);
-
       const message = validator._getContainerTemplateMessage('required', {});
 
       expect(message).toContain('Заполните поле');
@@ -142,7 +137,6 @@ describe('FieldValidator', () => {
   describe('validate', () => {
     test('возвращает true для заполненного поля', () => {
       $field.val('test value');
-
       const result = validator.validate();
 
       expect(result).toBe(true);
@@ -179,7 +173,6 @@ describe('FieldValidator', () => {
     test('валидирует группу полей: хотя бы одно заполнено', () => {
       // Создаём группу полей
       $container.empty();
-
       const $field1 = $('<input type="text" name="tags[]" value="">');
       const $field2 = $('<input type="text" name="tags[]" value="filled">');
       const $field3 = $('<input type="text" name="tags[]" value="">');
