@@ -1,6 +1,5 @@
 /**
  * FieldValidator
- * 
  * Ответственность: валидация одного поля по набору правил.
  * Не знает о форме, компонентах или событиях.
  * Работает только с полем, правилами и рендерером ошибок.
@@ -9,20 +8,35 @@
  * - 5 уровней иерархии сообщений (включая обратную совместимость)
  * - Публичный метод loadRules()
  * - Улучшенная обработка массивов полей
+ * - Зависимость от интерфейса ValidationRule (не от конкретного конфига)
+ * - Guards для проверки структуры правил на runtime
  * 
  * @class FieldValidator
  * @version 1.2.0
  * @file modia/services/field-validator.js
  */
 import { logger } from './logger.js';
-import { FieldErrorRenderer } from './field-error-renderer.js';
+import { FieldErrorRenderer, DEFAULT_CONFIG } from './field-error-renderer.js';
+
+/**
+ * Интерфейс правила валидации
+ * FieldValidator зависит от этого интерфейса, не от конкретного файла конфигурации
+ * 
+ * @typedef {Object} ValidationRule
+ * @property {string} name - Уникальное имя правила (для логов и атрибутов)
+ * @property {string} selector - CSS-селектор для отбора полей
+ * @property {Function} validate - Функция валидации: ($field, validator) → boolean|{valid, params}
+ * @property {string|Function} [defaultMessage] - Сообщение по умолчанию (опционально)
+ * @property {string} [templateId] - ID legacy-шаблона (опционально, для обратной совместимости)
+ */
 
 export class FieldValidator {
   /**
+   * Создаёт валидатор поля
    * @param {jQuery} $valueSource - источник значения (поле или скрытый инпут)
    * @param {jQuery} $errorScreen - элемент, для которого выводится ошибка (визуальный)
    * @param {jQuery} $root - корень формы/контейнера (для поиска шаблонов ошибок)
-   * @param {Array} validationRules - массив правил валидации
+   * @param {ValidationRule[]} validationRules - массив правил валидации (интерфейс, не конфиг)
    * @param {FieldErrorRenderer} errorRenderer - рендерер ошибок (обязательно)
    */
   constructor($valueSource, $errorScreen, $root, validationRules, errorRenderer) {
@@ -36,6 +50,17 @@ export class FieldValidator {
     if (!errorRenderer) {
       logger.error('[FieldValidator] errorRenderer is required', 'FieldValidator');
       throw new Error('[FieldValidator] errorRenderer is required');
+    }
+
+    // ✅ Проверка validationRules (должен быть массив)
+    if (!Array.isArray(validationRules)) {
+      logger.warn(
+        '[FieldValidator] validationRules должен быть массивом. Используется пустой массив.',
+        'FieldValidator'
+      );
+      this.validationRules = [];
+    } else {
+      this.validationRules = validationRules;
     }
 
     this.$valueSource = $valueSource;
@@ -52,7 +77,6 @@ export class FieldValidator {
     }
 
     this.$root = $root;
-    this.validationRules = validationRules;
     this.errorRenderer = errorRenderer;
 
     // ✅ Кэширование правил при инициализации
@@ -88,22 +112,19 @@ export class FieldValidator {
    * - Если несколько элементов (массив полей) — возвращает массив значений
    * - Если один элемент — возвращает строку
    * - Для стандартных полей (input, textarea, select) — .val()
-   * - Для [contenteditable] — .text() (без HTML тегов)
+   * - Для [contenteditable] — .text() (без HTML тегов, только видимый текст)
+   * 
    * @returns {string|Array<string>} Значение поля или массив значений
    */
   getFieldValue() {
-    // Сценарий 1: Массив полей (например, name='tags[]' или мультиселект)
+    // Сценарий 1: Массив полей
     if (this.$valueSource.length > 1) {
       return this.$valueSource.toArray().map(element => {
         const $el = $(element);
         const tagName = $el[0].tagName.toLowerCase();
-
-        // Массив может быть только input или select
         if (tagName === 'input' || tagName === 'select') {
-          return $el.val() || '';
+          return $el.val() || '';  // ← Возвращаем '' вместо null
         }
-
-        // Fallback
         return '';
       });
     }
@@ -111,25 +132,12 @@ export class FieldValidator {
     // Сценарий 2: Одиночное поле
     const tagName = this.$valueSource[0].tagName.toLowerCase();
 
-    // Стандартные поля формы
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
-      return this.$valueSource.val() || '';
+      return this.$valueSource.val() || '';  // ← Возвращаем '' вместо null/undefined
     }
 
-    // Contenteditable элементы - используем .text() для безопасности
     if (this.$valueSource.is('[contenteditable]')) {
-      const text = this.$valueSource.text().trim();
-
-      // ⚠️ Предупреждение если есть HTML-теги в contenteditable
-      const html = this.$valueSource.html();
-      if (html !== text && html.includes('<')) {
-        logger.warn(
-          `Contenteditable поле содержит HTML-теги, используется только текст: ${this._getFieldIdentifier()}`,
-          'FieldValidator'
-        );
-      }
-
-      return text;
+      return this.$valueSource.text().trim();
     }
 
     return '';
@@ -149,9 +157,22 @@ export class FieldValidator {
    * Загружает правила валидации для поля
    * Фильтрует правила по селектору и кэширует результат
    * Публичный метод для обновления правил после динамических изменений
+   * 
+   * GUARDS:
+   * - Проверяет наличие rule.selector
+   * - Пропускает правила без селектора с предупреждением
    */
   loadRules() {
     this.applicableRules = this.validationRules.filter(rule => {
+      // ✅ Guard: проверка наличия selector
+      if (!rule || !rule.selector) {
+        logger.warn(
+          `Правило без selector пропущено: ${JSON.stringify(rule)}`,
+          'FieldValidator'
+        );
+        return false;
+      }
+
       return this.$valueSource.is(rule.selector);
     });
 
@@ -172,13 +193,18 @@ export class FieldValidator {
   /**
    * Валидирует поле по всем подходящим правилам
    * Останавливается на первой ошибке
+   * 
+   * GUARDS:
+   * - Проверяет наличие rule.validate
+   * - Пропускает правила без validate с предупреждением
+   * 
    * @returns {boolean} true если поле валидно, false если есть ошибка
    */
   validate() {
     // Пропускаем скрытые поля
     if (!this.isVisibleForValidation()) {
       logger.info(`Пропущено поле (скрыто/отключено): ${this._getFieldIdentifier()}`, 'FieldValidator');
-      return true; // Считаем валидным
+      return true;
     }
 
     // Очищаем старые ошибки перед валидацией (идемпотентность)
@@ -186,11 +212,21 @@ export class FieldValidator {
 
     // Применяем правила по порядку
     for (const rule of this.applicableRules) {
-      // Вызываем метод валидации правила
+      // Guard: проверка наличия validate
+      if (typeof rule.validate !== 'function') {
+        logger.warn(
+          `Правило "${rule.name || 'unknown'}" не имеет метода validate, пропускается`,
+          'FieldValidator'
+        );
+        continue;
+      }
+
       const result = rule.validate(this.$valueSource, this);
 
-      // Если правило вернуло ошибку
-      if (result === false || (result && !result.valid)) {
+      // Явная проверка что правило НЕ прошло
+      const ruleFailed = (result === false) || (result && result.valid === false);
+
+      if (ruleFailed) {
         const params = result && result.params ? result.params : {};
 
         // Получаем сообщение об ошибке (с логированием уровня)
@@ -199,23 +235,25 @@ export class FieldValidator {
         // Рендерим ошибку
         this.errorRenderer.renderError(message);
 
-        // Логирование в зависимости от уровня
+        // ← Лог рендера ошибки (важно для отладки)
+        logger.info(`renderError() вызван: ${message?.substring(0, 50)}`, 'FieldValidator');
+
+        // Логируем в зависимости от уровня (warn/error для проблем конфигурации)
         this._logErrorLevel(rule.name, level);
 
-        // Возвращаем false — поле не валидно
         return false;
       }
     }
 
-    // Все правила пройдены — поле валидно
-    logger.info(`Поле валидно: ${this._getFieldIdentifier()}`, 'FieldValidator');
+    // ← Лог успеха (итог валидации)
+    logger.success(`Поле валидно: ${this._getFieldIdentifier()}`, 'FieldValidator');
     return true;
-  }
+    }
 
   /**
    * Получает сообщение об ошибке с определением уровня
    * @private
-   * @param {Object} rule - правило валидации
+   * @param {ValidationRule} rule - правило валидации
    * @param {Object} params - параметры для подстановки
    * @returns {{message: string, level: number}}
    */
@@ -314,7 +352,7 @@ export class FieldValidator {
    */
   _getContainerTemplateMessage(ruleName, params) {
     const $template = this.$root.find(
-      `${FieldErrorRenderer.DEFAULT_CONFIG.errorTemplateClass} [data-rule="${ruleName}"]`
+      `${DEFAULT_CONFIG.errorTemplateClass} [data-rule="${ruleName}"]`
     );
     if ($template.length === 0) return null;
 
@@ -330,7 +368,7 @@ export class FieldValidator {
    * @returns {string|null}
    */
   _getSeparateTemplateMessage(ruleName, params) {
-    const templateSelector = FieldErrorRenderer.DEFAULT_CONFIG.separateTemplates[ruleName];
+    const templateSelector = DEFAULT_CONFIG.separateTemplates[ruleName];
     if (!templateSelector) return null;
 
     const $template = this.$root.find(templateSelector);
