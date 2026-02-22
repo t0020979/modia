@@ -241,14 +241,17 @@ export class FieldValidator {
    * @returns {boolean} true если поле валидно, false если есть ошибка
    */
   validate() {
+    // Очищаем старые ошибки перед валидацией (идемпотентность) и проверкой видимости
+    // Это гарантирует очистку ошибок при повторной валидации disabled/hidden полей
+    // Ограничение: не работает при динамическом изменении состояния без re-validate
+    // TODO v1.3: ValidationComponent.clearAllErrors() перед валидацией формы
+    this.clearError();
+
     // Пропускаем скрытые поля
     if (!this.isVisibleForValidation()) {
       logger.info(`Пропущено поле (скрыто/отключено): ${this._getFieldIdentifier()}`, 'FieldValidator');
       return true;
     }
-
-    // Очищаем старые ошибки перед валидацией (идемпотентность)
-    this.clearError();
 
     // Применяем правила по порядку
     for (const rule of this.applicableRules) {
