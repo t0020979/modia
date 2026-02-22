@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест FieldValidator (Крайние случаи)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Modia CSS (скрывает .error-templates) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <!-- Примеры CSS -->
+  <link rel="stylesheet" href="../../../examples/examples.css">
+
+  <style>
+    .test-section {
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #f8f9fa;
+    }
+
+    .instruction-box {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+
+    .console-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .test-result {
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .test-result.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .test-result.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .test-result.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .auto-test-running {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    /* Стили для contenteditable с подсветкой синтаксиса */
+    .sql-editor {
+      background: #f8f9fa;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 60px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .sql-keyword {
+      color: #007bff;
+      font-weight: bold;
+    }
+
+    .sql-string {
+      color: #28a745;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест FieldValidator Service</h1>
+    <p class="lead">Крайние случаи: contenteditable, no ID, disabled, multiple rules</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result alert alert-info">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li><strong>Contenteditable:</strong> <code>getFieldValue()</code> возвращает только видимый текст (без
+          HTML-тегов подсветки)</li>
+        <li><strong>Поле без ID:</strong> <code>logger.warn()</code> об отсутствии ID, валидация работает</li>
+        <li><strong>Отключённое поле:</strong> <code>isVisibleForValidation()</code> → <code>false</code>, пропускается
+        </li>
+        <li><strong>Несколько правил:</strong> Применяются по порядку, останавливаются на первой ошибке</li>
+        <li><strong>Множественный select:</strong> <code>getFieldValue()</code> → <code>Array&lt;string&gt;</code></li>
+      </ul>
+    </div>
+
+    <!-- Секция 1: Contenteditable с подсветкой синтаксиса -->
+    <div class="test-section" id="section_1">
+      <h3>📍 Секция 1: Contenteditable + подсветка синтаксиса</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Введите SQL: <code>SELECT * FROM users</code><br>
+        2. Нажмите <code>📝 Валидировать</code><br>
+        3. Проверьте: <code>getFieldValue()</code> возвращает только текст (без &lt;span&gt;-тегов)<br>
+        4. Очистите поле, нажмите <code>📝 Валидировать</code> → ошибка должна появиться
+      </div>
+
+      <form id="form-contenteditable" novalidate>
+        <div class="form-group" id="fg-sql">
+          <label>SQL запрос *</label>
+          <div id="sql-editor" class="sql-editor" contenteditable="true" required>
+            SELECT * FROM users;
+          </div>
+          <!-- Скрытый инпут для отправки формы -->
+          <textarea class="d-none" name="sql_query"></textarea>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Заполните SQL запрос</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_ce" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_ce" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_check_value_ce" class="btn btn-info">🔍 Проверить значение</button>
+        <button id="btn_add_highlight" class="btn btn-warning">✨ Добавить подсветку (имитация)</button>
+      </div>
+
+      <div id="result_1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 2: Поле без ID (logger.warn) -->
+    <div class="test-section" id="section_2">
+      <h3>📍 Секция 2: Поле без ID атрибута</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code><br>
+        2. Проверьте консоль: должен быть <code>logger.warn()</code> об отсутствии ID<br>
+        3. Валидация должна работать корректно (возвращать false для пустого поля)
+      </div>
+
+      <form id="form-no-id" novalidate>
+        <div class="form-group" id="fg-no-id">
+          <label>Поле без ID *</label>
+          <input type="text" name="no_id_field" required class="form-control" placeholder="Введите текст">
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_noid" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_noid" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_check_log_noid" class="btn btn-info">🔍 Проверить логи (warn)</button>
+      </div>
+
+      <div id="result_2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 3: Отключённое поле -->
+    <div class="test-section" id="section_3">
+      <h3>📍 Секция 3: Отключённое поле (disabled)</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>👁️ Проверить видимость</code> → должно вернуть <code>false</code><br>
+        2. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>true</code> (поле пропускается)<br>
+        3. Нажмите <code>🔧 Включить поле</code>, повторите тест
+      </div>
+
+      <form id="form-disabled" novalidate>
+        <div class="form-group" id="fg-disabled">
+          <label>Отключённое поле *</label>
+          <input type="text" id="disabled-field" name="disabled_field" required class="form-control" disabled>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_check_visible_dis" class="btn btn-primary">👁️ Проверить видимость</button>
+        <button id="btn_validate_dis" class="btn btn-secondary">📝 Валидировать</button>
+        <button id="btn_toggle_dis" class="btn btn-warning">🔧 Включить/Отключить поле</button>
+      </div>
+
+      <div id="result_3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 4: Несколько правил -->
+    <div class="test-section" id="section_4">
+      <h3>📍 Секция 4: Несколько правил (required + max-length)</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Оставьте поле пустым → ошибка "Обязательное поле"<br>
+        2. Введите 100 символов → ошибка "Максимальная длина: 50"<br>
+        3. Введите "OK" → валидация успешна
+      </div>
+
+      <form id="form-multi-rules" novalidate>
+        <div class="form-group" id="fg-multi">
+          <label>Описание * (макс. 50 символов)</label>
+          <input type="text" id="desc-field" name="description" required data-max-length="50" class="form-control"
+            maxlength="50">
+          <small class="form-text text-muted">Максимум 50 символов</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+          <span class="text-danger" data-rule="max-length">Максимальная длина: __count__ символов</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_multi" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_multi" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_fill_100" class="btn btn-info">✍️ Заполнить 100 символов</button>
+        <button id="btn_fill_ok" class="btn btn-success">✅ Заполнить "OK"</button>
+      </div>
+
+      <div id="result_4" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 5: Множественный select -->
+    <div class="test-section" id="section_5">
+      <h3>📍 Секция 5: Множественный select (Array<string>)</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Выберите несколько вариантов<br>
+        2. Нажмите <code>🔍 Проверить значение</code> → должно вернуть <code>Array&lt;string&gt;</code><br>
+        3. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>true</code> (хотя бы один выбран)
+      </div>
+
+      <form id="form-multi-select" novalidate>
+        <div class="form-group" id="fg-select">
+          <label>Выберите теги * (можно несколько)</label>
+          <select id="tags-select" name="tags[]" multiple required class="form-control" size="4">
+            <option value="tag1">Тег 1</option>
+            <option value="tag2">Тег 2</option>
+            <option value="tag3">Тег 3</option>
+            <option value="tag4">Тег 4</option>
+          </select>
+          <small class="form-text text-muted">Удерживайте Ctrl/Cmd для выбора нескольких</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Выберите хотя бы один тег</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_check_value_select" class="btn btn-info">🔍 Проверить значение</button>
+        <button id="btn_validate_select" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_select" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+      </div>
+
+      <div id="result_5" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Кнопки авто-теста -->
+    <div class="test-buttons mt-4">
+      <button id="btn_auto_test_all" class="btn btn-success btn-lg">▶️ Запустить авто-тест всех секций</button>
+      <button id="btn_stop_test" class="btn btn-danger btn-lg">⏹️ Остановить</button>
+    </div>
+
+    <div id="auto_test_status" class="alert alert-info mt-3" style="display: none;">
+      Статус: <span id="auto_test_status_text">Ожидание...</span>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="console-log" id="console-log">
+      <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+    </div>
+
+    <div class="test-buttons mt-2">
+      <button id="btn_clear_log" class="btn btn-sm btn-secondary">🧹 Очистить лог</button>
+      <button id="btn_count_warn" class="btn btn-sm btn-warning">⚠️ Посчитать warn</button>
+      <button id="btn_count_error" class="btn btn-sm btn-danger">❌ Посчитать error</button>
+    </div>
+
+    <div id="log_stats" class="alert alert-secondary mt-2" style="display: none;">
+      <strong>Статистика логов:</strong><br>
+      Warn: <span id="warn_count">0</span> | Error: <span id="error_count">0</span>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-02-message-hierarchy.html" class="btn btn-outline-secondary">[← Предыдущий тест: Иерархия
+        сообщений]</a>
+      <a href="test-04-hidden-fields.html" class="btn btn-outline-primary ml-2">[Следующий тест: Скрытые поля →]</a>
+    </div>
+  </div>
+
+  <!-- Подключение модулей -->
+  <script type="module">
+    import { FieldValidator } from '../../../modia/services/field-validator.js';
+    import { FieldErrorRenderer } from '../../../modia/services/field-error-renderer.js';
+    import { logger } from '../../../modia/services/logger.js';
+
+    // ========================================================================
+    // Mock Rules — для тестирования крайних случаев
+    // ========================================================================
+    const mockValidationRules = [
+      {
+        name: 'required',
+        selector: '[required]',
+        defaultMessage: 'Обязательное поле',
+        validate($field, validator) {
+          const value = validator.getFieldValue();
+          const values = Array.isArray(value) ? value : [value];
+          const hasFilledValue = values.some(val => val !== null && val !== undefined && val.trim() !== '');
+          return hasFilledValue ? true : { valid: false, params: {} };
+        }
+      },
+      {
+        name: 'max-length',
+        selector: '[data-max-length]',
+        defaultMessage: 'Максимальная длина: __Count__ символов',
+        validate($field, validator) {
+          const maxLength = parseInt($field.data('max-length'), 10);
+          const value = validator.getFieldValue();
+          const values = Array.isArray(value) ? value : [value];
+          const allValid = values.every(val => val.length <= maxLength);
+          return allValid ? true : { valid: false, params: { count: maxLength } };
+        }
+      }
+    ];
+
+    // Глобальные переменные
+    let validators = {};
+    let renderers = {};
+    let autoTestRunning = false;
+    let warnCount = 0;
+    let errorCount = 0;
+
+    // ========================================================================
+    // Функция логирования + перехват для подсчёта
+    // ========================================================================
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : type === 'warn' ? 'text-warning'
+            : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[FieldValidator Test] ${message}`);
+
+      if (type === 'warn') warnCount++;
+      if (type === 'error') errorCount++;
+    }
+
+    // Перехват логов для подсчёта
+    const originalWarn = logger.warn.bind(logger);
+    const originalError = logger.error.bind(logger);
+
+    logger.warn = function (message, context) {
+      warnCount++;
+      originalWarn(message, context);
+    };
+
+    logger.error = function (message, context) {
+      errorCount++;
+      originalError(message, context);
+    };
+
+    // ========================================================================
+    // Инициализация валидаторов
+    // ========================================================================
+    function initValidators() {
+      // Секция 1: Contenteditable
+      const $sql = $('#sql-editor');
+      renderers.ce = new FieldErrorRenderer($sql);
+      validators.ce = new FieldValidator($sql, $sql, $('#form-contenteditable'), mockValidationRules, renderers.ce);
+
+      // Секция 2: Поле без ID
+      const $noId = $('input[name="no_id_field"]');
+      renderers.noid = new FieldErrorRenderer($noId);
+      validators.noid = new FieldValidator($noId, $noId, $('#form-no-id'), mockValidationRules, renderers.noid);
+
+      // Секция 3: Отключённое поле
+      const $dis = $('#disabled-field');
+      renderers.dis = new FieldErrorRenderer($dis);
+      validators.dis = new FieldValidator($dis, $dis, $('#form-disabled'), mockValidationRules, renderers.dis);
+
+      // Секция 4: Несколько правил
+      const $multi = $('#desc-field');
+      renderers.multi = new FieldErrorRenderer($multi);
+      validators.multi = new FieldValidator($multi, $multi, $('#form-multi-rules'), mockValidationRules, renderers.multi);
+
+      // Секция 5: Множественный select
+      const $select = $('#tags-select');
+      renderers.select = new FieldErrorRenderer($select);
+      validators.select = new FieldValidator($select, $select, $('#form-multi-select'), mockValidationRules, renderers.select);
+
+      log('Валидаторы инициализированы', 'success');
+    }
+
+    // ========================================================================
+    // Секция 1: Contenteditable
+    // ========================================================================
+    $('#btn_validate_ce').on('click', function () {
+      const isValid = validators.ce.validate();
+      const value = validators.ce.getFieldValue();
+      $('#result_1')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} | getFieldValue(): "${value}"`);
+      log(`Contenteditable: validate() = ${isValid}, value = "${value}"`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_ce').on('click', function () {
+      validators.ce.clearError();
+      $('#result_1').addClass('pass').text('Ошибка очищена');
+      log('Contenteditable: clearError()', 'info');
+    });
+
+    $('#btn_check_value_ce').on('click', function () {
+      const value = validators.ce.getFieldValue();
+      const hasHtml = $('#sql-editor').html().includes('<');
+      $('#result_1').addClass('pass').text(`getFieldValue(): "${value}" ${hasHtml ? '(HTML в DOM, но не в значении)' : ''}`);
+      log(`Contenteditable value: "${value}" (DOM has HTML: ${hasHtml})`, 'info');
+    });
+
+    $('#btn_add_highlight').on('click', function () {
+      // Имитация подсветки синтаксиса: оборачиваем ключевые слова в span
+      const $editor = $('#sql-editor');
+      let html = $editor.html();
+      html = html.replace(/SELECT/gi, '<span class="sql-keyword">SELECT</span>');
+      html = html.replace(/FROM/gi, '<span class="sql-keyword">FROM</span>');
+      html = html.replace(/users/gi, '<span class="sql-string">users</span>');
+      $editor.html(html);
+      log('Добавлена имитация подсветки синтаксиса (HTML-теги в DOM)', 'info');
+    });
+
+    // ========================================================================
+    // Секция 2: Поле без ID
+    // ========================================================================
+    $('#btn_validate_noid').on('click', function () {
+      const isValid = validators.noid.validate();
+      $('#result_2')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid}`);
+      log(`No-ID field: validate() = ${isValid}`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_noid').on('click', function () {
+      validators.noid.clearError();
+      $('#result_2').addClass('pass').text('Ошибка очищена');
+      log('No-ID field: clearError()', 'info');
+    });
+
+    $('#btn_check_log_noid').on('click', function () {
+      $('#log_stats').show();
+      $('#warn_count').text(warnCount);
+      $('#error_count').text(errorCount);
+      log(`Проверка логов: warn=${warnCount}, error=${errorCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Секция 3: Отключённое поле
+    // ========================================================================
+    $('#btn_check_visible_dis').on('click', function () {
+      const isVisible = validators.dis.isVisibleForValidation();
+      $('#result_3')
+        .removeClass('pending pass fail')
+        .addClass(isVisible ? 'pass' : 'fail')
+        .text(`isVisibleForValidation(): ${isVisible}`);
+      log(`Disabled field: isVisibleForValidation() = ${isVisible}`, isVisible ? 'success' : 'warn');
+    });
+
+    $('#btn_validate_dis').on('click', function () {
+      const isValid = validators.dis.validate();
+      $('#result_3')
+        .removeClass('pending pass fail')
+        .addClass('pass')
+        .text(`validate(): ${isValid} (отключённое поле пропускается)`);
+      log(`Disabled field: validate() = ${isValid} (пропущено)`, 'success');
+    });
+
+    $('#btn_toggle_dis').on('click', function () {
+      const $field = $('#disabled-field');
+      const isDisabled = $field.prop('disabled');
+      $field.prop('disabled', !isDisabled);
+      log(`Поле ${isDisabled ? 'включено' : 'отключено'}`, 'info');
+    });
+
+    // ========================================================================
+    // Секция 4: Несколько правил
+    // ========================================================================
+    $('#btn_validate_multi').on('click', function () {
+      const isValid = validators.multi.validate();
+      $('#result_4')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid}`);
+      log(`Multi-rules: validate() = ${isValid}`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_multi').on('click', function () {
+      validators.multi.clearError();
+      $('#result_4').addClass('pass').text('Ошибка очищена');
+      log('Multi-rules: clearError()', 'info');
+    });
+
+    $('#btn_fill_100').on('click', function () {
+      $('#desc-field').val('A'.repeat(100));
+      log('Заполнено 100 символов (превышает max-length: 50)', 'info');
+    });
+
+    $('#btn_fill_ok').on('click', function () {
+      $('#desc-field').val('OK');
+      log('Заполнено "OK" (валидно)', 'info');
+    });
+
+    // ========================================================================
+    // Секция 5: Множественный select
+    // ========================================================================
+    $('#btn_check_value_select').on('click', function () {
+      const value = validators.select.getFieldValue();
+      const isArray = Array.isArray(value);
+      $('#result_5')
+        .removeClass('pending pass fail')
+        .addClass('pass')
+        .text(`getFieldValue(): ${JSON.stringify(value)} (type: ${isArray ? 'Array' : 'string'})`);
+      log(`Multi-select value: ${JSON.stringify(value)} (${isArray ? 'Array' : 'string'})`, 'info');
+    });
+
+    $('#btn_validate_select').on('click', function () {
+      const isValid = validators.select.validate();
+      $('#result_5')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid}`);
+      log(`Multi-select: validate() = ${isValid}`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_select').on('click', function () {
+      validators.select.clearError();
+      $('#result_5').addClass('pass').text('Ошибка очищена');
+      log('Multi-select: clearError()', 'info');
+    });
+
+    // ========================================================================
+    // Статистика логов
+    // ========================================================================
+    $('#btn_count_warn').on('click', function () {
+      $('#log_stats').show();
+      $('#warn_count').text(warnCount);
+      log(`warn count: ${warnCount}`, 'info');
+    });
+
+    $('#btn_count_error').on('click', function () {
+      $('#log_stats').show();
+      $('#error_count').text(errorCount);
+      log(`error count: ${errorCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Авто-тест
+    // ========================================================================
+    async function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function runAutoTestAll() {
+      if (autoTestRunning) return;
+      autoTestRunning = true;
+
+      $('#auto_test_status').show();
+      $('#auto_test_status_text').text('Запуск тестов...');
+
+      log('=== ЗАПУСК АВТО-ТЕСТА ===', 'info');
+
+      // Секция 1: Contenteditable
+      $('#auto_test_status_text').text('Секция 1: Contenteditable...');
+      $('#section_1').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_ce').click();
+      await sleep(800);
+      $('#btn_add_highlight').click();
+      await sleep(300);
+      $('#btn_check_value_ce').click();
+      await sleep(500);
+      $('#section_1').removeClass('auto-test-running');
+
+      // Секция 2: No ID
+      $('#auto_test_status_text').text('Секция 2: Поле без ID...');
+      $('#section_2').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_noid').click();
+      await sleep(800);
+      $('#btn_check_log_noid').click();
+      await sleep(500);
+      $('#section_2').removeClass('auto-test-running');
+
+      // Секция 3: Disabled
+      $('#auto_test_status_text').text('Секция 3: Отключённое поле...');
+      $('#section_3').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_check_visible_dis').click();
+      await sleep(800);
+      $('#btn_validate_dis').click();
+      await sleep(500);
+      $('#section_3').removeClass('auto-test-running');
+
+      // Секция 4: Multiple rules
+      $('#auto_test_status_text').text('Секция 4: Несколько правил...');
+      $('#section_4').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_multi').click();
+      await sleep(800);
+      $('#btn_fill_100').click();
+      await sleep(300);
+      $('#btn_validate_multi').click();
+      await sleep(800);
+      $('#btn_fill_ok').click();
+      await sleep(300);
+      $('#btn_validate_multi').click();
+      await sleep(500);
+      $('#section_4').removeClass('auto-test-running');
+
+      // Секция 5: Multi-select
+      $('#auto_test_status_text').text('Секция 5: Множественный select...');
+      $('#section_5').addClass('auto-test-running');
+      await sleep(500);
+      $('#tags-select').val(['tag1', 'tag3']);
+      await sleep(300);
+      $('#btn_check_value_select').click();
+      await sleep(800);
+      $('#btn_validate_select').click();
+      await sleep(500);
+      $('#section_5').removeClass('auto-test-running');
+
+      $('#auto_test_status_text').text('✅ Все тесты завершены!');
+      $('#auto_test_status').addClass('alert-success');
+      log('=== АВТО-ТЕСТ ЗАВЕРШЁН ===', 'success');
+
+      autoTestRunning = false;
+    }
+
+    $('#btn_auto_test_all').on('click', runAutoTestAll);
+
+    $('#btn_stop_test').on('click', function () {
+      autoTestRunning = false;
+      $('#auto_test_status').hide();
+      $('.auto-test-running').removeClass('auto-test-running');
+      log('Автотест остановлен пользователем', 'warn');
+    });
+
+    $('#btn_clear_log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен...</small></div>');
+      warnCount = 0;
+      errorCount = 0;
+      $('#log_stats').hide();
+      log('Лог очищен', 'info');
+    });
+
+    // ========================================================================
+    // Инициализация
+    // ========================================================================
+    $(document).ready(function () {
+      initValidators();
+      log('Тест FieldValidator готов к работе', 'success');
+    });
+  </script>
+</body>
+
+</html>

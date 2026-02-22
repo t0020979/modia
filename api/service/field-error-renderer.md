@@ -154,7 +154,7 @@ DEFAULT_CONFIG: Object
     custom: { containerClass, errorClass, messageClass }
   },
   defaultStyle: 'bootstrap',
-  legacyTemplates: { required, format, ajax, ... }
+  separateTemplates: { required, format, ajax, ... }
 }
 ```
 

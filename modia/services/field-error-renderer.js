@@ -68,7 +68,7 @@ export const DEFAULT_CONFIG = {
   defaultErrorClass: 'text-danger',
 
   // Селекторы для обратной совместимости (старый формат)
-  legacyTemplates: {
+  separateTemplates: {
     required: '#error_span',
     format: '#format-error-span',
     ajax: '#ajax-error-span',

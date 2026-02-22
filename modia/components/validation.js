@@ -38,7 +38,9 @@ export class ValidationComponent extends BaseComponent {
     debounceDelay: 300,       // Задержка для debounce (мс)
     validateOnSubmit: true,   // Валидировать при отправке
     validateOnClick: true,    // Валидировать при клике на кнопку
-    errorStyle: 'bootstrap'   // Стиль ошибок: rails, bootstrap, custom
+    errorStyle: 'bootstrap',  // Стиль ошибок: rails, bootstrap, custom
+    demoDelay: 500,           // ← НОВОЕ: задержка отправки для демо
+    novalidate: false         // ← ИЗМЕНЕНО: по умолчанию false
   };
 
   // ========== Конструктор ==========
@@ -75,6 +77,14 @@ export class ValidationComponent extends BaseComponent {
 
     // Создаём валидаторы
     this._createValidators();
+
+    // Убедимся, что novalidate добавлен
+    if (this.config.novalidate) {
+      this.$el.attr('novalidate', 'novalidate');
+      this._log('Добавлен атрибут novalidate', 'debug');
+    }
+
+
 
     // Навешиваем обработчики событий
     this._bindEvents();
@@ -239,12 +249,13 @@ export class ValidationComponent extends BaseComponent {
    * @private
    */
   _bindEvents() {
-    // Валидация при отправке формы
-    if (this.config.validateOnSubmit) {
+    // Валидация при отправке формы (только если это <form>)
+    if (this.config.validateOnSubmit && this.$el.is('form')) {
       this._on('submit', this._handleSubmit);
     }
 
-    // Валидация при клике на кнопку
+    // Валидация при клике на кнопку [data-validate]
+    // Работает для любых контейнеров (form, div, section)
     if (this.config.validateOnClick) {
       this._on('click', '[data-validate]', this._handleValidateClick);
     }
@@ -252,7 +263,7 @@ export class ValidationComponent extends BaseComponent {
     // Обработка динамического добавления полей
     this._on('validation:field-added', this._handleFieldAdded);
   }
-
+  
   /**
    * Обработчик отправки формы
    * @param {Event} event - событие отправки
@@ -268,22 +279,42 @@ export class ValidationComponent extends BaseComponent {
   //   }
   // }
   _handleSubmit(event) {
-    console.log('[ValidationComponent] Обработчик submit сработал');
-    console.log('[ValidationComponent] event.type:', event.type);
-    console.log('[ValidationComponent] event.target:', event.target);
+    this._log('Запущен обработчик отправки формы', 'debug');
+
+    console.log('[ValidationComponent] Submit event:', {
+      type: event.type,
+      target: event.target,
+      currentTarget: event.currentTarget,
+      isDefaultPrevented: event.isDefaultPrevented()
+    });
 
     const isValid = this.validate();
-    console.log('[ValidationComponent] Результат валидации:', isValid);
+    console.log('[ValidationComponent] Validation result:', isValid);
 
     if (!isValid) {
-      console.log('[ValidationComponent] Есть ошибки, отменяем отправку');
+      console.log('[ValidationComponent] ❌ Preventing form submission : Есть ошибки, отменяем отправку');
       event.preventDefault();
       event.stopPropagation();
-      event.stopImmediatePropagation(); // ← Добавляем это
-    } else {
-      console.log('[ValidationComponent] Всё валидно, разрешаем отправку');
+      event.stopImmediatePropagation();
+      return false;
     }
-  }
+
+    // ← НОВОЕ: Задержка для демонстрации
+    if (this.config.demoDelay > 0) {
+      event.preventDefault();
+      this._log(`Задержка отправки: ${this.config.demoDelay}мс`, 'debug');
+
+      setTimeout(() => {
+        this._log('Отправка формы после задержки', 'debug');
+        this.$el[0].submit();
+      }, this.config.demoDelay);
+
+      return false;
+    }
+
+    console.log('[ValidationComponent] ✅ Allowing form submission : Всё валидно, разрешаем отправку');
+    return true;
+  }  
 
   /**
    * Обработчик клика на кнопку валидации
@@ -292,9 +323,17 @@ export class ValidationComponent extends BaseComponent {
    */
   _handleValidateClick(event) {
     event.preventDefault();
-    this.validate();
-  }
+    event.stopPropagation();
 
+    console.log('[ValidationComponent] Validate button clicked');
+    const isValid = this.validate();
+
+    // Опционально: можно вызвать колбэк или отправить форму вручную
+    if (isValid && this.$el.is('form')) {
+      console.log('[ValidationComponent] Form is valid, submitting manually');
+      this.$el[0].submit(); // Отправляем форму без триггера события
+    }
+  }
   /**
    * Обработчик динамического добавления поля
    * @param {Event} event - событие добавления

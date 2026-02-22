@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест FieldValidator (Скрытые поля)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Modia CSS (скрывает .error-templates) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <!-- Примеры CSS -->
+  <link rel="stylesheet" href="../../../examples/examples.css">
+
+  <style>
+    .test-section {
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #f8f9fa;
+    }
+
+    .instruction-box {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+
+    .console-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .test-result {
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .test-result.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .test-result.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .test-result.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .auto-test-running {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    /* Стили для визуальных элементов */
+    .character-selector {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      background: white;
+    }
+
+    .character-btn {
+      padding: 10px 20px;
+      border: 2px solid #007bff;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .character-btn.selected {
+      background: #007bff;
+      color: white;
+    }
+
+    .character-btn:hover {
+      background: #e7f3ff;
+    }
+
+    .character-btn.selected:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест FieldValidator Service</h1>
+    <p class="lead">Скрытые поля + внешний экран ошибки</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result alert alert-info">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li><strong>Способ 1:</strong> Скрытое поле + внешний экран ошибки (<code>data-input-error-screen</code>)</li>
+        <li><strong>Способ 2:</strong> Видимый элемент + внешний источник значения
+          (<code>data-input-value-source</code>)</li>
+        <li>Ошибка отображается на видимом элементе, а не на скрытом поле</li>
+        <li><code>getFieldValue()</code> возвращает значение скрытого поля</li>
+        <li>Валидация работает корректно для обоих сценариев</li>
+      </ul>
+    </div>
+
+    <!-- Секция 1: Скрытое поле + внешний экран ошибки -->
+    <div class="test-section" id="section_1">
+      <h3>📍 Секция 1: Скрытое поле + внешний экран ошибки</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите на персонажа (Чебурашка/Крокодил)<br>
+        2. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>true</code><br>
+        3. Нажмите <code>🗑️ Очистить выбор</code><br>
+        4. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>false</code>, ошибка на видимом элементе
+      </div>
+
+      <form id="form-hidden-1" novalidate>
+        <div class="form-group" id="fg-character-1">
+          <label>Выберите персонажа *</label>
+
+          <!-- Видимый элемент для отображения ошибки -->
+          <div class="character-selector" id="character-selector-1">
+            <button type="button" class="character-btn" data-select="cheburashka">Чебурашка</button>
+            <button type="button" class="character-btn" data-select="crocodile">Крокодил Гена</button>
+            <button type="button" class="character-btn" data-select="monkey">Обезьяна</button>
+          </div>
+
+          <!-- Скрытое поле с реальным значением -->
+          <input type="hidden" id="character_id_1" name="character_id" required
+            data-input-error-screen="#character-selector-1">
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Выберите персонажа</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_h1" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_h1" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_clear_selection_h1" class="btn btn-warning">🗑️ Очистить выбор</button>
+        <button id="btn_check_value_h1" class="btn btn-info">🔍 Проверить значение</button>
+      </div>
+
+      <div id="result_1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 2: Видимый элемент + внешний источник значения -->
+    <div class="test-section" id="section_2">
+      <h3>📍 Секция 2: Видимый элемент + внешний источник значения</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Введите текст в видимое поле<br>
+        2. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>true</code><br>
+        3. Очистите видимое поле<br>
+        4. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>false</code>
+      </div>
+
+      <form id="form-hidden-2" novalidate>
+        <div class="form-group" id="fg-description-2">
+          <label>Описание *</label>
+
+          <!-- Видимый элемент с внешним источником значения -->
+          <div class="visible-field" id="visible-description" required data-input-value-source="#hidden-description"
+            contenteditable="true"
+            style="border: 1px solid #ced4da; padding: 10px; min-height: 60px; background: white;">
+            Введите описание...
+          </div>
+
+          <!-- Скрытое поле с реальным значением -->
+          <textarea id="hidden-description" name="description" class="d-none"></textarea>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Заполните описание</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_h2" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_h2" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_sync_value_h2" class="btn btn-info">🔄 Синхронизировать значение</button>
+        <button id="btn_check_value_h2" class="btn btn-info">🔍 Проверить значение</button>
+      </div>
+
+      <div id="result_2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 3: Проверка $valueSource и $errorScreen -->
+    <div class="test-section" id="section_3">
+      <h3>📍 Секция 3: Проверка $valueSource и $errorScreen</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>🔍 Проверить конфигурацию</code><br>
+        2. Проверьте: <code>$valueSource</code> = скрытое поле, <code>$errorScreen</code> = видимый элемент<br>
+        3. Ошибка должна отображаться на <code>$errorScreen</code>, а не на <code>$valueSource</code>
+      </div>
+
+      <form id="form-hidden-3" novalidate>
+        <div class="form-group" id="fg-test-3">
+          <label>Тестовое поле *</label>
+
+          <div class="character-selector" id="test-selector-3">
+            <button type="button" class="character-btn" data-select="option1">Опция 1</button>
+            <button type="button" class="character-btn" data-select="option2">Опция 2</button>
+          </div>
+
+          <input type="hidden" id="test_field_3" name="test_field" required data-input-error-screen="#test-selector-3">
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Выберите опцию</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_check_config_h3" class="btn btn-info">🔍 Проверить конфигурацию</button>
+        <button id="btn_validate_h3" class="btn btn-primary">📝 Валидировать</button>
+      </div>
+
+      <div id="result_3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Кнопки авто-теста -->
+    <div class="test-buttons mt-4">
+      <button id="btn_auto_test_all" class="btn btn-success btn-lg">▶️ Запустить авто-тест всех секций</button>
+      <button id="btn_stop_test" class="btn btn-danger btn-lg">⏹️ Остановить</button>
+    </div>
+
+    <div id="auto_test_status" class="alert alert-info mt-3" style="display: none;">
+      Статус: <span id="auto_test_status_text">Ожидание...</span>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="console-log" id="console-log">
+      <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+    </div>
+
+    <div class="test-buttons mt-2">
+      <button id="btn_clear_log" class="btn btn-sm btn-secondary">🧹 Очистить лог</button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-03-edge-cases.html" class="btn btn-outline-secondary">[← Предыдущий тест: Крайние случаи]</a>
+      <a href="test-05-arrays.html" class="btn btn-outline-primary ml-2">[Следующий тест: Массивы полей →]</a>
+    </div>
+  </div>
+
+  <!-- Подключение модулей -->
+  <script type="module">
+    import { FieldValidator } from '../../../modia/services/field-validator.js';
+    import { FieldErrorRenderer } from '../../../modia/services/field-error-renderer.js';
+    import { logger } from '../../../modia/services/logger.js';
+
+    // ========================================================================
+    // Mock Rules — для тестирования скрытых полей
+    // ========================================================================
+    const mockValidationRules = [
+      {
+        name: 'required',
+        selector: '[required]',
+        defaultMessage: 'Обязательное поле',
+        validate($field, validator) {
+          const value = validator.getFieldValue();
+          const values = Array.isArray(value) ? value : [value];
+          const hasFilledValue = values.some(val => val !== null && val !== undefined && val.trim() !== '');
+          return hasFilledValue ? true : { valid: false, params: {} };
+        }
+      }
+    ];
+
+    // Глобальные переменные
+    let validators = {};
+    let renderers = {};
+    let autoTestRunning = false;
+
+    // ========================================================================
+    // Функция логирования
+    // ========================================================================
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : type === 'warn' ? 'text-warning'
+            : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[FieldValidator Test] ${message}`);
+    }
+
+    // ========================================================================
+    // Инициализация валидаторов
+    // ========================================================================
+    function initValidators() {
+      // Секция 1: Скрытое поле + внешний экран ошибки
+      const $valueSource1 = $('#character_id_1');
+      const $errorScreen1 = $('#character-selector-1');
+      renderers.h1 = new FieldErrorRenderer($errorScreen1);
+      validators.h1 = new FieldValidator($valueSource1, $errorScreen1, $('#form-hidden-1'), mockValidationRules, renderers.h1);
+
+      // Секция 2: Видимый элемент + внешний источник значения
+      const $valueSource2 = $('#visible-description');
+      const $errorScreen2 = $('#visible-description');
+      renderers.h2 = new FieldErrorRenderer($errorScreen2);
+      validators.h2 = new FieldValidator($valueSource2, $errorScreen2, $('#form-hidden-2'), mockValidationRules, renderers.h2);
+
+      // Секция 3: Проверка конфигурации
+      const $valueSource3 = $('#test_field_3');
+      const $errorScreen3 = $('#test-selector-3');
+      renderers.h3 = new FieldErrorRenderer($errorScreen3);
+      validators.h3 = new FieldValidator($valueSource3, $errorScreen3, $('#form-hidden-3'), mockValidationRules, renderers.h3);
+
+      log('Валидаторы инициализированы', 'success');
+    }
+
+    // ========================================================================
+    // Обработчики для Секции 1 (Выбор персонажа)
+    // ========================================================================
+    $('.character-btn[data-select]').on('click', function () {
+      const $btn = $(this);
+      const $container = $btn.closest('.character-selector');
+      const value = $btn.data('select');
+
+      // Снимаем выделение со всех кнопок
+      $container.find('.character-btn').removeClass('selected');
+
+      // Выделяем выбранную
+      $btn.addClass('selected');
+
+      // Обновляем скрытое поле
+      const hiddenInput = $container.siblings('input[type="hidden"]');
+      if (hiddenInput.length) {
+        hiddenInput.val(value);
+        log(`Выбран персонаж: ${value}`, 'info');
+      }
+    });
+
+    $('#btn_validate_h1').on('click', function () {
+      const isValid = validators.h1.validate();
+      const value = validators.h1.getFieldValue();
+      $('#result_1')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} | value: "${value}"`);
+      log(`Секция 1: validate() = ${isValid}, value = "${value}"`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_h1').on('click', function () {
+      validators.h1.clearError();
+      $('#result_1').addClass('pass').text('Ошибка очищена');
+      log('Секция 1: clearError()', 'info');
+    });
+
+    $('#btn_clear_selection_h1').on('click', function () {
+      $('#character-selector-1 .character-btn').removeClass('selected');
+      $('#character_id_1').val('');
+      $('#result_1').addClass('pending').text('Выброс очищен');
+      log('Секция 1: Выбор очищен', 'info');
+    });
+
+    $('#btn_check_value_h1').on('click', function () {
+      const value = validators.h1.getFieldValue();
+      const $valueSource = validators.h1.$valueSource;
+      const $errorScreen = validators.h1.$errorScreen;
+      $('#result_1')
+        .addClass('pass')
+        .text(`$valueSource: ${$valueSource[0].tagName}#${$valueSource.attr('id')} | $errorScreen: ${$errorScreen[0].tagName}#${$errorScreen.attr('id')} | value: "${value}"`);
+      log(`Секция 1: $valueSource=${$valueSource.attr('id')}, $errorScreen=${$errorScreen.attr('id')}, value="${value}"`, 'info');
+    });
+
+    // ========================================================================
+    // Обработчики для Секции 2 (Видимый элемент + внешний источник)
+    // ========================================================================
+    $('#visible-description').on('input', function () {
+      const text = $(this).text().trim();
+      $('#hidden-description').val(text);
+    });
+
+    $('#btn_validate_h2').on('click', function () {
+      const isValid = validators.h2.validate();
+      const value = validators.h2.getFieldValue();
+      $('#result_2')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} | value: "${value?.substring(0, 30)}..."`);
+      log(`Секция 2: validate() = ${isValid}, value = "${value?.substring(0, 30)}..."`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_h2').on('click', function () {
+      validators.h2.clearError();
+      $('#result_2').addClass('pass').text('Ошибка очищена');
+      log('Секция 2: clearError()', 'info');
+    });
+
+    $('#btn_sync_value_h2').on('click', function () {
+      const text = $('#visible-description').text().trim();
+      $('#hidden-description').val(text);
+      $('#result_2').addClass('pass').text(`Значение синхронизировано: "${text.substring(0, 30)}..."`);
+      log(`Секция 2: Синхронизация: "${text.substring(0, 30)}..."`, 'info');
+    });
+
+    $('#btn_check_value_h2').on('click', function () {
+      const value = validators.h2.getFieldValue();
+      const $valueSource = validators.h2.$valueSource;
+      const $errorScreen = validators.h2.$errorScreen;
+      $('#result_2')
+        .addClass('pass')
+        .text(`$valueSource: ${$valueSource[0].tagName}#${$valueSource.attr('id')} | value: "${value?.substring(0, 30)}..."`);
+      log(`Секция 2: $valueSource=${$valueSource.attr('id')}, value="${value?.substring(0, 30)}..."`, 'info');
+    });
+
+    // ========================================================================
+    // Обработчики для Секции 3 (Проверка конфигурации)
+    // ========================================================================
+    $('#btn_check_config_h3').on('click', function () {
+      const $valueSource = validators.h3.$valueSource;
+      const $errorScreen = validators.h3.$errorScreen;
+      $('#result_3')
+        .addClass('pass')
+        .html(`
+          <strong>$valueSource:</strong> ${$valueSource[0].tagName}#${$valueSource.attr('id')} (скрытое поле)<br>
+          <strong>$errorScreen:</strong> ${$errorScreen[0].tagName}#${$errorScreen.attr('id')} (видимый элемент)<br>
+          <strong>Разные элементы:</strong> ${$valueSource[0] !== $errorScreen[0] ? '✅ Да' : '❌ Нет'}
+        `);
+      log(`Секция 3: $valueSource=${$valueSource.attr('id')}, $errorScreen=${$errorScreen.attr('id')}`, 'info');
+    });
+
+    $('#btn_validate_h3').on('click', function () {
+      const isValid = validators.h3.validate();
+      $('#result_3')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid}`);
+      log(`Секция 3: validate() = ${isValid}`, isValid ? 'success' : 'error');
+    });
+
+    // ========================================================================
+    // Авто-тест
+    // ========================================================================
+    async function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function runAutoTestAll() {
+      if (autoTestRunning) return;
+      autoTestRunning = true;
+
+      $('#auto_test_status').show();
+      $('#auto_test_status_text').text('Запуск тестов...');
+
+      log('=== ЗАПУСК АВТО-ТЕСТА ===', 'info');
+
+      // Секция 1: Скрытое поле + внешний экран
+      $('#auto_test_status_text').text('Секция 1: Скрытое поле...');
+      $('#section_1').addClass('auto-test-running');
+      await sleep(500);
+      $('#character-selector-1 .character-btn[data-select="cheburashka"]').click();
+      await sleep(300);
+      $('#btn_validate_h1').click();
+      await sleep(800);
+      $('#btn_clear_selection_h1').click();
+      await sleep(300);
+      $('#btn_validate_h1').click();
+      await sleep(800);
+      $('#btn_check_value_h1').click();
+      await sleep(500);
+      $('#section_1').removeClass('auto-test-running');
+
+      // Секция 2: Видимый элемент + внешний источник
+      $('#auto_test_status_text').text('Секция 2: Видимый элемент...');
+      $('#section_2').addClass('auto-test-running');
+      await sleep(500);
+      $('#visible-description').text('Тестовое описание');
+      await sleep(300);
+      $('#btn_sync_value_h2').click();
+      await sleep(300);
+      $('#btn_validate_h2').click();
+      await sleep(800);
+      $('#btn_check_value_h2').click();
+      await sleep(500);
+      $('#section_2').removeClass('auto-test-running');
+
+      // Секция 3: Проверка конфигурации
+      $('#auto_test_status_text').text('Секция 3: Проверка конфигурации...');
+      $('#section_3').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_check_config_h3').click();
+      await sleep(800);
+      $('#btn_validate_h3').click();
+      await sleep(500);
+      $('#section_3').removeClass('auto-test-running');
+
+      $('#auto_test_status_text').text('✅ Все тесты завершены!');
+      $('#auto_test_status').addClass('alert-success');
+      log('=== АВТО-ТЕСТ ЗАВЕРШЁН ===', 'success');
+
+      autoTestRunning = false;
+    }
+
+    $('#btn_auto_test_all').on('click', runAutoTestAll);
+
+    $('#btn_stop_test').on('click', function () {
+      autoTestRunning = false;
+      $('#auto_test_status').hide();
+      $('.auto-test-running').removeClass('auto-test-running');
+      log('Автотест остановлен пользователем', 'warn');
+    });
+
+    $('#btn_clear_log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен...</small></div>');
+      log('Лог очищен', 'info');
+    });
+
+    // ========================================================================
+    // Инициализация
+    // ========================================================================
+    $(document).ready(function () {
+      initValidators();
+      log('Тест FieldValidator готов к работе', 'success');
+    });
+  </script>
+</body>
+
+</html>
