@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест FieldValidator (Массивы полей)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Modia CSS (скрывает .error-templates) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <!-- Примеры CSS -->
+  <link rel="stylesheet" href="../../../examples/examples.css">
+
+  <style>
+    .test-section {
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #f8f9fa;
+    }
+
+    .instruction-box {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+
+    .console-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .test-result {
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .test-result.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .test-result.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .test-result.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .auto-test-running {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .field-array-item {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест FieldValidator Service</h1>
+    <p class="lead">Массивы полей (name='tags[]') + динамическое добавление</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result alert alert-info">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li><strong>Массив полей:</strong> <code>getFieldValue()</code> возвращает <code>Array&lt;string&gt;</code></li>
+        <li><strong>Валидация:</strong> «хотя бы одно поле заполнено» (не все!)</li>
+        <li><strong>Динамическое добавление:</strong> <code>loadRules()</code> обновляет кэш правил</li>
+        <li><strong>Множественный select:</strong> тоже возвращает массив значений</li>
+        <li><strong>Checkbox группы:</strong> <code>name='interests[]'</code> работают корректно</li>
+      </ul>
+    </div>
+
+    <!-- Секция 1: Массив текстовых полей -->
+    <div class="test-section" id="section_1">
+      <h3>📍 Секция 1: Массив текстовых полей (name='tags[]')</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Оставьте все поля пустыми → нажмите <code>📝 Валидировать</code> → ошибка<br>
+        2. Заполните только ОДНО поле → нажмите <code>📝 Валидировать</code> → успех<br>
+        3. Нажмите <code>🔍 Проверить значение</code> → должен вернуть <code>Array&lt;string&gt;</code><br>
+        4. Нажмите <code>➕ Добавить поле</code> → новое поле появится
+      </div>
+
+      <form id="form-arrays" novalidate>
+        <div class="form-group" id="fg-tags">
+          <label>Теги * (хотя бы один)</label>
+          <div id="tags-container">
+            <div class="field-array-item">
+              <input type="text" name="tags[]" class="form-control" placeholder="Тег 1" required>
+            </div>
+            <div class="field-array-item">
+              <input type="text" name="tags[]" class="form-control" placeholder="Тег 2" required>
+            </div>
+            <div class="field-array-item">
+              <input type="text" name="tags[]" class="form-control" placeholder="Тег 3" required>
+            </div>
+          </div>
+
+          <button type="button" id="btn-add-tag" class="btn btn-sm btn-outline-primary mt-2">➕ Добавить поле</button>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Заполните хотя бы одно поле</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_arr" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_arr" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_check_value_arr" class="btn btn-info">🔍 Проверить значение</button>
+      </div>
+
+      <div id="result_1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 2: Множественный select -->
+    <div class="test-section" id="section_2">
+      <h3>📍 Секция 2: Множественный select (multiple)</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Выберите несколько вариантов (Ctrl/Cmd + клик)<br>
+        2. Нажмите <code>🔍 Проверить значение</code> → должен вернуть <code>Array&lt;string&gt;</code><br>
+        3. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>true</code><br>
+        4. Снимите выделение → нажмите <code>📝 Валидировать</code> → ошибка
+      </div>
+
+      <form id="form-multi-select" novalidate>
+        <div class="form-group" id="fg-select">
+          <label>Выберите теги * (можно несколько)</label>
+          <select id="tags-select" name="tags[]" multiple required class="form-control" size="4">
+            <option value="tag1">Тег 1</option>
+            <option value="tag2">Тег 2</option>
+            <option value="tag3">Тег 3</option>
+            <option value="tag4">Тег 4</option>
+          </select>
+          <small class="form-text text-muted">Удерживайте Ctrl/Cmd для выбора нескольких</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Выберите хотя бы один тег</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_check_value_select" class="btn btn-info">🔍 Проверить значение</button>
+        <button id="btn_validate_select" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_select" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+      </div>
+
+      <div id="result_2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 3: Checkbox группы -->
+    <div class="test-section" id="section_3">
+      <h3>📍 Секция 3: Checkbox группы (name='interests[]')</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Отметьте один или несколько чекбоксов<br>
+        2. Нажмите <code>🔍 Проверить значение</code> → должен вернуть <code>Array&lt;string&gt;</code><br>
+        3. Нажмите <code>📝 Валидировать</code> → должно вернуть <code>true</code><br>
+        4. Снимите все галочки → нажмите <code>📝 Валидировать</code> → ошибка
+      </div>
+
+      <form id="form-checkboxes" novalidate>
+        <div class="form-group" id="fg-checkboxes">
+          <label>Интересы * (хотя бы один)</label>
+          <div class="form-check">
+            <input type="checkbox" name="interests[]" id="interest-1" value="programming" required
+              class="form-check-input">
+            <label class="form-check-label" for="interest-1">Программирование</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" name="interests[]" id="interest-2" value="design" required class="form-check-input">
+            <label class="form-check-label" for="interest-2">Дизайн</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" name="interests[]" id="interest-3" value="marketing" required
+              class="form-check-input">
+            <label class="form-check-label" for="interest-3">Маркетинг</label>
+          </div>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Выберите хотя бы один интерес</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_check_value_cb" class="btn btn-info">🔍 Проверить значение</button>
+        <button type='submit' id="btn_validate_cb" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_cb" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+      </div>
+
+      <div id="result_3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 4: Динамическое обновление правил -->
+    <div class="test-section" id="section_4">
+      <h3>📍 Секция 4: Динамическое обновление правил (loadRules)</h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>➕ Добавить поле</code> в Секции 1<br>
+        2. Нажмите <code>🔄 Обновить правила</code> → кэш правил обновится<br>
+        3. Заполните новое поле → нажмите <code>📝 Валидировать</code> → успех
+      </div>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_refresh_rules" class="btn btn-info">🔄 Обновить правила</button>
+        <button id="btn_check_rules_count" class="btn btn-secondary">📊 Проверить количество правил</button>
+      </div>
+
+      <div id="result_4" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Кнопки авто-теста -->
+    <div class="test-buttons mt-4">
+      <button id="btn_auto_test_all" class="btn btn-success btn-lg">▶️ Запустить авто-тест всех секций</button>
+      <button id="btn_stop_test" class="btn btn-danger btn-lg">⏹️ Остановить</button>
+    </div>
+
+    <div id="auto_test_status" class="alert alert-info mt-3" style="display: none;">
+      Статус: <span id="auto_test_status_text">Ожидание...</span>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="console-log" id="console-log">
+      <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+    </div>
+
+    <div class="test-buttons mt-2">
+      <button id="btn_clear_log" class="btn btn-sm btn-secondary">🧹 Очистить лог</button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-04-hidden-fields.html" class="btn btn-outline-secondary">[← Предыдущий тест: Скрытые поля]</a>
+      <span class="ml-2 text-muted">[Финальный тест FieldValidator ✅]</span>
+    </div>
+  </div>
+
+  <!-- Подключение модулей -->
+  <script type="module">
+    import { FieldValidator } from '../../../modia/services/field-validator.js';
+    import { FieldErrorRenderer } from '../../../modia/services/field-error-renderer.js';
+    import { logger } from '../../../modia/services/logger.js';
+
+    // ========================================================================
+    // Mock Rules — ОДИН объект для ВСЕХ валидаторов (с диагностикой)
+    // ========================================================================
+    const mockValidationRules = [
+      {
+        name: 'required',
+        selector: '[required]',
+        defaultMessage: 'Обязательное поле',
+        validate($field, validator) {
+          const value = validator.getFieldValue();
+
+          console.log('[RULE required] ====== НАЧАЛО ПРОВЕРКИ ======');
+          console.log('[RULE required] getFieldValue() вернуло:', value);
+
+          // Для массива полей — проверяем, что хотя бы одно заполнено
+          if (Array.isArray(value)) {
+            console.log('[RULE required] Обработка массива из', value.length, 'элементов');
+
+            const hasFilledValue = value.some(val => {
+              // ✅ ИСПРАВЛЕНО: Правильная проверка на пустоту
+              if (val === null || val === undefined) return false;
+              if (typeof val === 'string') return val.trim() !== '';
+              return false;
+            });
+
+            console.log('[RULE required] hasFilledValue:', hasFilledValue);
+            console.log('[RULE required] ====== КОНЕЦ ПРОВЕРКИ ======');
+
+            return hasFilledValue ? true : { valid: false, params: {} };
+          }
+
+          // Для одиночного поля
+          console.log('[RULE required] Обработка одиночного поля');
+          const isValid = value !== null && value !== undefined && value.toString().trim() !== '';
+          console.log('[RULE required] isValid:', isValid);
+          console.log('[RULE required] ====== КОНЕЦ ПРОВЕРКИ ======');
+
+          return isValid ? true : { valid: false, params: {} };
+        }
+      }
+    ];
+
+    // Глобальные переменные
+    let validators = {};
+    let renderers = {};
+    let autoTestRunning = false;
+
+    // ========================================================================
+    // Функция логирования
+    // ========================================================================
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : type === 'warn' ? 'text-warning'
+            : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[FieldValidator Test] ${message}`);
+    }
+
+    // ========================================================================
+    // Инициализация валидаторов — ВСЕ используют ОДИН объект mockValidationRules
+    // ========================================================================
+    function initValidators() {
+      // Секция 1: Массив текстовых полей
+      const $tags = $('input[name="tags[]"]');
+      renderers.arr = new FieldErrorRenderer($tags.first());
+      validators.arr = new FieldValidator($tags, $tags.first(), $('#form-arrays'), mockValidationRules, renderers.arr);
+      // ↑ Обратите внимание: mockValidationRules (ОДИН объект)
+
+      // Секция 2: Множественный select
+      const $select = $('#tags-select');
+      renderers.select = new FieldErrorRenderer($select);
+      validators.select = new FieldValidator($select, $select, $('#form-multi-select'), mockValidationRules, renderers.select);
+      // ↑ Тот же объект mockValidationRules
+
+      // Секция 3: Checkbox группы
+      const $checkboxes = $('input[name="interests[]"]');
+      renderers.cb = new FieldErrorRenderer($checkboxes.first());
+      validators.cb = new FieldValidator($checkboxes, $checkboxes.first(), $('#form-checkboxes'), mockValidationRules, renderers.cb);
+      // ↑ Тот же объект mockValidationRules
+
+      log('Валидаторы инициализированы', 'success');
+    }
+
+    // ========================================================================
+    // Секция 1: Массив текстовых полей
+    // ========================================================================
+    $('#btn_validate_arr').on('click', function () {
+      const isValid = validators.arr.validate();
+      const value = validators.arr.getFieldValue();
+      $('#result_1')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} | getFieldValue(): ${JSON.stringify(value)}`);
+      log(`Массив полей: validate() = ${isValid}, value = ${JSON.stringify(value)}`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_arr').on('click', function () {
+      validators.arr.clearError();
+      $('#result_1').addClass('pass').text('Ошибка очищена');
+      log('Массив полей: clearError()', 'info');
+    });
+
+    $('#btn_check_value_arr').on('click', function () {
+      const value = validators.arr.getFieldValue();
+      const isArray = Array.isArray(value);
+      $('#result_1')
+        .addClass('pass')
+        .text(`getFieldValue(): ${JSON.stringify(value)} (type: ${isArray ? 'Array' : 'string'})`);
+      log(`Массив полей: getFieldValue() = ${JSON.stringify(value)} (${isArray ? 'Array' : 'string'})`, 'info');
+    });
+
+    $('#btn-add-tag').on('click', function () {
+      const count = $('#tags-container .field-array-item').length + 1;
+      $('#tags-container').append(`
+        <div class="field-array-item">
+          <input type="text" name="tags[]" class="form-control" placeholder="Тег ${count}">
+        </div>
+      `);
+      log(`Добавлено поле #${count}`, 'info');
+    });
+
+    // ========================================================================
+    // Секция 2: Множественный select
+    // ========================================================================
+    $('#btn_check_value_select').on('click', function () {
+      const value = validators.select.getFieldValue();
+      const isArray = Array.isArray(value);
+      $('#result_2')
+        .removeClass('pending pass fail')
+        .addClass('pass')
+        .text(`getFieldValue(): ${JSON.stringify(value)} (type: ${isArray ? 'Array' : 'string'})`);
+      log(`Multi-select: getFieldValue() = ${JSON.stringify(value)} (${isArray ? 'Array' : 'string'})`, 'info');
+    });
+
+    $('#btn_validate_select').on('click', function () {
+      const isValid = validators.select.validate();
+      $('#result_2')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid}`);
+      log(`Multi-select: validate() = ${isValid}`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_select').on('click', function () {
+      validators.select.clearError();
+      $('#result_2').addClass('pass').text('Ошибка очищена');
+      log('Multi-select: clearError()', 'info');
+    });
+
+    // ========================================================================
+    // Секция 3: Checkbox группы
+    // ========================================================================
+    $('#btn_check_value_cb').on('click', function () {
+      const value = validators.cb.getFieldValue();
+      const isArray = Array.isArray(value);
+      $('#result_3')
+        .removeClass('pending pass fail')
+        .addClass('pass')
+        .text(`getFieldValue(): ${JSON.stringify(value)} (type: ${isArray ? 'Array' : 'string'})`);
+      log(`Checkbox: getFieldValue() = ${JSON.stringify(value)} (${isArray ? 'Array' : 'string'})`, 'info');
+    });
+
+    $('#btn_validate_cb').on('click', function () {
+      const isValid = validators.cb.validate();
+      $('#result_3')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid}`);
+      log(`Checkbox: validate() = ${isValid}`, isValid ? 'success' : 'error');
+    });
+
+    $('#btn_clear_cb').on('click', function () {
+      validators.cb.clearError();
+      $('#result_3').addClass('pass').text('Ошибка очищена');
+      log('Checkbox: clearError()', 'info');
+    });
+
+    // ========================================================================
+    // Секция 4: Динамическое обновление правил
+    // ========================================================================
+    $('#btn_refresh_rules').on('click', function () {
+      validators.arr.loadRules();
+      const ruleCount = validators.arr.applicableRules ? validators.arr.applicableRules.length : 0;
+      $('#result_4').addClass('pass').text(`Правила обновлены: ${ruleCount}`);
+      log(`loadRules() обновлено: ${ruleCount} правил`, 'info');
+    });
+
+    $('#btn_check_rules_count').on('click', function () {
+      const ruleCount = validators.arr.applicableRules ? validators.arr.applicableRules.length : 0;
+      const fieldCount = $('input[name="tags[]"]').length;
+      $('#result_4').addClass('pass').text(`Правил: ${ruleCount} | Полей: ${fieldCount}`);
+      log(`Статистика: правил=${ruleCount}, полей=${fieldCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Авто-тест
+    // ========================================================================
+    async function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function runAutoTestAll() {
+      if (autoTestRunning) return;
+      autoTestRunning = true;
+
+      $('#auto_test_status').show();
+      $('#auto_test_status_text').text('Запуск тестов...');
+
+      log('=== ЗАПУСК АВТО-ТЕСТА ===', 'info');
+
+      // Секция 1: Массив полей (пустые → ошибка)
+      $('#auto_test_status_text').text('Секция 1: Массив полей (пустые)...');
+      $('#section_1').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_arr').click();
+      await sleep(800);
+
+      // Заполнить одно поле
+      $('#auto_test_status_text').text('Секция 1: Заполняем одно поле...');
+      $('input[name="tags[]"]').first().val('Тестовый тег');
+      await sleep(300);
+      $('#btn_validate_arr').click();
+      await sleep(800);
+      $('#btn_check_value_arr').click();
+      await sleep(500);
+      $('#section_1').removeClass('auto-test-running');
+
+      // Секция 2: Multi-select
+      $('#auto_test_status_text').text('Секция 2: Множественный select...');
+      $('#section_2').addClass('auto-test-running');
+      await sleep(500);
+      $('#tags-select').val(['tag1', 'tag3']);
+      await sleep(300);
+      $('#btn_check_value_select').click();
+      await sleep(800);
+      $('#btn_validate_select').click();
+      await sleep(500);
+      $('#section_2').removeClass('auto-test-running');
+
+      // Секция 3: Checkbox
+      $('#auto_test_status_text').text('Секция 3: Checkbox группы...');
+      $('#section_3').addClass('auto-test-running');
+      await sleep(500);
+      $('#interest-1').prop('checked', true);
+      $('#interest-2').prop('checked', true);
+      await sleep(300);
+      $('#btn_check_value_cb').click();
+      await sleep(800);
+      $('#btn_validate_cb').click();
+      await sleep(500);
+      $('#section_3').removeClass('auto-test-running');
+
+      // Секция 4: Динамическое обновление
+      $('#auto_test_status_text').text('Секция 4: Динамическое обновление...');
+      $('#section_4').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn-add-tag').click();
+      await sleep(300);
+      $('#btn_refresh_rules').click();
+      await sleep(800);
+      $('#btn_check_rules_count').click();
+      await sleep(500);
+      $('#section_4').removeClass('auto-test-running');
+
+      $('#auto_test_status_text').text('✅ Все тесты завершены!');
+      $('#auto_test_status').addClass('alert-success');
+      log('=== АВТО-ТЕСТ ЗАВЕРШЁН ===', 'success');
+
+      autoTestRunning = false;
+    }
+
+    $('#btn_auto_test_all').on('click', runAutoTestAll);
+
+    $('#btn_stop_test').on('click', function () {
+      autoTestRunning = false;
+      $('#auto_test_status').hide();
+      $('.auto-test-running').removeClass('auto-test-running');
+      log('Автотест остановлен пользователем', 'warn');
+    });
+
+    $('#btn_clear_log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен...</small></div>');
+      log('Лог очищен', 'info');
+    });
+
+    // ========================================================================
+    // Инициализация
+    // ========================================================================
+    $(document).ready(function () {
+      initValidators();
+      log('Тест FieldValidator готов к работе', 'success');
+    });
+  </script>
+</body>
+
+</html>

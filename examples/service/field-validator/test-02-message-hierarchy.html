@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест FieldValidator (Иерархия сообщений)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Modia CSS (скрывает .error-templates) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <!-- Примеры CSS -->
+  <link rel="stylesheet" href="../../../examples/examples.css">
+
+  <style>
+    .test-section {
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #f8f9fa;
+    }
+
+    .instruction-box {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+
+    .console-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: 4px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .test-result {
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+
+    .test-result.pass {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .test-result.fail {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .test-result.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .auto-test-running {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.6;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .level-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: bold;
+      margin-left: 5px;
+    }
+
+    .level-1 {
+      background: #28a745;
+      color: white;
+    }
+
+    .level-2 {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .level-3 {
+      background: #ffc107;
+      color: #212529;
+    }
+
+    .level-4 {
+      background: #fd7e14;
+      color: white;
+    }
+
+    .level-5 {
+      background: #dc3545;
+      color: white;
+    }
+  </style>
+</head>
+
+<body data-modia-log>
+  <div class="container mt-5">
+    <h1>🧪 Тест FieldValidator Service</h1>
+    <p class="lead">5 уровней иерархии сообщений + логирование</p>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result alert alert-info">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul>
+        <li><strong>Уровень 1:</strong> <code>data-error-text-{rule}</code> → без логов</li>
+        <li><strong>Уровень 2:</strong> <code>.error-templates [data-rule]</code> → без логов</li>
+        <li><strong>Уровень 3:</strong> Отдельный шаблон (<code>#error_span</code>) → <code>logger.warn()</code></li>
+        <li><strong>Уровень 4:</strong> <code>rule.defaultMessage</code> → <code>logger.error()</code></li>
+        <li><strong>Уровень 5:</strong> Fallback → <code>logger.error()</code> (критическая ошибка)</li>
+        <li>Логирование дублируется в консоль и HTML-лог</li>
+      </ul>
+    </div>
+
+    <!-- Секция 1: Уровень 1 (Inline-атрибут) -->
+    <div class="test-section" id="section_1">
+      <h3>📍 Секция 1: Уровень 1 — Inline-атрибут <span class="level-badge level-1">L1</span></h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code><br>
+        2. Проверьте сообщение: «Пожалуйста, введите email»<br>
+        3. Проверьте лог: <strong>не должно быть</strong> warn/error
+      </div>
+
+      <form id="form-level-1" >
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="text" id="email-l1" name="email" required class="form-control"
+            data-error-text-required="Пожалуйста, введите email">
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Шаблон уровня 2</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button type="submit" id="btn_validate_l1" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_l1" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+      </div>
+
+      <div id="result_1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 2: Уровень 2 (Шаблон в контейнере) -->
+    <div class="test-section" id="section_2">
+      <h3>📍 Секция 2: Уровень 2 — Шаблон в контейнере <span class="level-badge level-2">L2</span></h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code><br>
+        2. Проверьте сообщение: «Обязательное поле (уровень 2)»<br>
+        3. Проверьте лог: <strong>не должно быть</strong> warn/error
+      </div>
+
+      <form id="form-level-2" >
+        <div class="form-group">
+          <label>Телефон *</label>
+          <input type="text" id="phone-l2" name="phone" required class="form-control">
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле (уровень 2)</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_l2" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_l2" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+      </div>
+
+      <div id="result_2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 3: Уровень 3 (Отдельный шаблон) -->
+    <div class="test-section" id="section_3">
+      <h3>📍 Секция 3: Уровень 3 — Отдельный шаблон <span class="level-badge level-3">L3</span></h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code><br>
+        2. Проверьте сообщение: «Обязательное поле (legacy)»<br>
+        3. Проверьте лог: <strong>должен быть</strong> <code>logger.warn()</code> о миграции
+      </div>
+
+      <form id="form-level-3" >
+        <div class="form-group">
+          <label>Имя *</label>
+          <input type="text" id="name-l3" name="name" required class="form-control">
+        </div>
+
+        <!-- Отдельный шаблон (уровень 3) -->
+        <div class="invisible" id="error_span">
+          <span class="text-danger">Обязательное поле (legacy)</span>
+        </div>
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_l3" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_l3" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_check_log_l3" class="btn btn-info">🔍 Проверить лог (warn)</button>
+      </div>
+
+      <div id="result_3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 4: Уровень 4 (Сообщение из правила) -->
+    <div class="test-section" id="section_4">
+      <h3>📍 Секция 4: Уровень 4 — Сообщение из правила <span class="level-badge level-4">L4</span></h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code><br>
+        2. Проверьте сообщение: «This field is required»<br>
+        3. Проверьте лог: <strong>должен быть</strong> <code>logger.error()</code>
+      </div>
+
+      <form id="form-level-4" >
+        <div class="form-group">
+          <label>Пароль *</label>
+          <input type="text" id="password-l4" name="password" required class="form-control">
+        </div>
+
+        <!-- Нет шаблонов → уровень 4 -->
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_l4" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_l4" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_check_log_l4" class="btn btn-info">🔍 Проверить лог (error)</button>
+      </div>
+
+      <div id="result_4" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Секция 5: Уровень 5 (Fallback) -->
+    <div class="test-section" id="section_5">
+      <h3>📍 Секция 5: Уровень 5 — Fallback <span class="level-badge level-5">L5</span></h3>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code><br>
+        2. Проверьте сообщение: «Field error»<br>
+        3. Проверьте лог: <strong>должен быть</strong> <code>logger.error()</code> (критическая ошибка)
+      </div>
+
+      <form id="form-level-5" >
+        <div class="form-group">
+          <label>Код *</label>
+          <input type="text" id="code-l5" name="code" required class="form-control" data-custom-rule="true">
+        </div>
+
+        <!-- Нет шаблонов, нет defaultMessage → уровень 5 -->
+      </form>
+
+      <div class="test-buttons mt-3">
+        <button id="btn_validate_l5" class="btn btn-primary">📝 Валидировать</button>
+        <button id="btn_clear_l5" class="btn btn-secondary">🗑️ Очистить ошибку</button>
+        <button id="btn_check_log_l5" class="btn btn-info">🔍 Проверить лог (critical)</button>
+      </div>
+
+      <div id="result_5" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- Кнопки авто-теста -->
+    <div class="test-buttons mt-4">
+      <button id="btn_auto_test_all" class="btn btn-success btn-lg">▶️ Запустить авто-тест всех секций</button>
+      <button id="btn_stop_test" class="btn btn-danger btn-lg">⏹️ Остановить</button>
+    </div>
+
+    <div id="auto_test_status" class="alert alert-info mt-3" style="display: none;">
+      Статус: <span id="auto_test_status_text">Ожидание...</span>
+    </div>
+
+    <!-- Консоль лог -->
+    <div class="console-log" id="console-log">
+      <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+    </div>
+
+    <div class="test-buttons mt-2">
+      <button id="btn_clear_log" class="btn btn-sm btn-secondary">🧹 Очистить лог</button>
+      <button id="btn_count_warn" class="btn btn-sm btn-warning">⚠️ Посчитать warn</button>
+      <button id="btn_count_error" class="btn btn-sm btn-danger">❌ Посчитать error</button>
+    </div>
+
+    <div id="log_stats" class="alert alert-secondary mt-2" style="display: none;">
+      <strong>Статистика логов:</strong><br>
+      Warn: <span id="warn_count">0</span> | Error: <span id="error_count">0</span>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-01-basic.html" class="btn btn-outline-secondary">[← Предыдущий тест: Базовый]</a>
+      <a href="test-03-edge-cases.html" class="btn btn-outline-primary ml-2">[Следующий тест: Крайние случаи →]</a>
+    </div>
+  </div>
+
+  <!-- Подключение модулей -->
+  <script type="module">
+    import { FieldValidator } from '../../../modia/services/field-validator.js';
+    import { FieldErrorRenderer } from '../../../modia/services/field-error-renderer.js';
+    import { logger } from '../../../modia/services/logger.js';
+
+    // ========================================================================
+    // Mock Rules — для тестирования разных уровней
+    // ========================================================================
+    const mockValidationRules = [
+      {
+        name: 'required',
+        selector: '[required]',
+        defaultMessage: 'Обязательное поле',
+        validate($field, validator) {
+          const value = validator.getFieldValue();
+
+          // ← НОВОЕ: Лог в правиле
+          console.log(`[RULE required] getFieldValue() = "${value}"`,
+            'type:', typeof value,
+            'Array.isArray:', Array.isArray(value));
+
+          const values = Array.isArray(value) ? value : [value];
+
+          // ← НОВОЕ: Лог проверки
+          console.log(`[RULE required] values =`, values);
+
+          const hasFilledValue = values.some(val => {
+            const isEmpty = (val === null || val === undefined || val.trim() === '');
+            console.log(`[RULE required] Проверка значения: "${val}" → isEmpty: ${isEmpty}`);
+            return !isEmpty;
+          });
+
+          const result = hasFilledValue ? true : { valid: false, params: {} };
+
+          // ← НОВОЕ: Лог результата
+          console.log(`[RULE required] Результат:`, result);
+
+          return result;
+        }
+      }
+    ];
+
+    // Глобальные переменные
+    let validators = {};
+    let renderers = {};
+    let autoTestRunning = false;
+    let warnCount = 0;
+    let errorCount = 0;
+
+    // ========================================================================
+    // Функция логирования
+    // ========================================================================
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : type === 'warn' ? 'text-warning'
+            : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[FieldValidator Test] ${message}`);
+
+      // Подсчёт логов
+      if (type === 'warn') warnCount++;
+      if (type === 'error') errorCount++;
+    }
+
+    // ========================================================================
+    // Инициализация валидаторов
+    // ========================================================================
+    function initValidators() {
+      // Уровень 1
+      const $email = $('#email-l1');
+      renderers.l1 = new FieldErrorRenderer($email);
+      validators.l1 = new FieldValidator($email, $email, $('#form-level-1'), mockValidationRules, renderers.l1);
+
+      // Уровень 2
+      const $phone = $('#phone-l2');
+      renderers.l2 = new FieldErrorRenderer($phone);
+      validators.l2 = new FieldValidator($phone, $phone, $('#form-level-2'), mockValidationRules, renderers.l2);
+
+      // Уровень 3
+      const $name = $('#name-l3');
+      renderers.l3 = new FieldErrorRenderer($name);
+      validators.l3 = new FieldValidator($name, $name, $('#form-level-3'), mockValidationRules, renderers.l3);
+
+      // Уровень 4
+      const $password = $('#password-l4');
+      renderers.l4 = new FieldErrorRenderer($password);
+      validators.l4 = new FieldValidator($password, $password, $('#form-level-4'), mockValidationRules, renderers.l4);
+
+      // Уровень 5
+      const $code = $('#code-l5');
+      renderers.l5 = new FieldErrorRenderer($code);
+      validators.l5 = new FieldValidator($code, $code, $('#form-level-5'), mockValidationRules, renderers.l5);
+
+      log('Валидаторы инициализированы', 'success');
+    }
+
+    // ========================================================================
+    // Секция 1: Уровень 1
+    // ========================================================================
+    $('#btn_validate_l1').on('click', function () {
+      const isValid = validators.l1.validate();
+      $('#result_1')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} (Уровень 1: Inline)`);
+      log(`Уровень 1: validate() = ${isValid}`, isValid ? 'success' : 'info');
+    });
+
+    $('#btn_clear_l1').on('click', function () {
+      validators.l1.clearError();
+      $('#result_1').addClass('pass').text('Ошибка очищена');
+      log('Уровень 1: clearError()', 'info');
+    });
+
+    // ========================================================================
+    // Секция 2: Уровень 2
+    // ========================================================================
+    $('#btn_validate_l2').on('click', function () {
+      const isValid = validators.l2.validate();
+      $('#result_2')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} (Уровень 2: Container)`);
+      log(`Уровень 2: validate() = ${isValid}`, isValid ? 'success' : 'info');
+    });
+
+    $('#btn_clear_l2').on('click', function () {
+      validators.l2.clearError();
+      $('#result_2').addClass('pass').text('Ошибка очищена');
+      log('Уровень 2: clearError()', 'info');
+    });
+
+    // ========================================================================
+    // Секция 3: Уровень 3
+    // ========================================================================
+    $('#btn_validate_l3').on('click', function () {
+      const isValid = validators.l3.validate();
+      $('#result_3')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} (Уровень 3: Separate)`);
+      log(`Уровень 3: validate() = ${isValid}`, isValid ? 'success' : 'info');
+    });
+
+    $('#btn_clear_l3').on('click', function () {
+      validators.l3.clearError();
+      $('#result_3').addClass('pass').text('Ошибка очищена');
+      log('Уровень 3: clearError()', 'info');
+    });
+
+    $('#btn_check_log_l3').on('click', function () {
+      $('#log_stats').show();
+      $('#warn_count').text(warnCount);
+      $('#error_count').text(errorCount);
+      log(`Проверка логов: warn=${warnCount}, error=${errorCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Секция 4: Уровень 4
+    // ========================================================================
+    $('#btn_validate_l4').on('click', function () {
+      const isValid = validators.l4.validate();
+      $('#result_4')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} (Уровень 4: Default)`);
+      log(`Уровень 4: validate() = ${isValid}`, isValid ? 'success' : 'info');
+    });
+
+    $('#btn_clear_l4').on('click', function () {
+      validators.l4.clearError();
+      $('#result_4').addClass('pass').text('Ошибка очищена');
+      log('Уровень 4: clearError()', 'info');
+    });
+
+    $('#btn_check_log_l4').on('click', function () {
+      $('#log_stats').show();
+      $('#warn_count').text(warnCount);
+      $('#error_count').text(errorCount);
+      log(`Проверка логов: warn=${warnCount}, error=${errorCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Секция 5: Уровень 5
+    // ========================================================================
+    $('#btn_validate_l5').on('click', function () {
+      const isValid = validators.l5.validate();
+      $('#result_5')
+        .removeClass('pending pass fail')
+        .addClass(isValid ? 'pass' : 'fail')
+        .text(`validate(): ${isValid} (Уровень 5: Fallback)`);
+      log(`Уровень 5: validate() = ${isValid}`, isValid ? 'success' : 'info');
+    });
+
+    $('#btn_clear_l5').on('click', function () {
+      validators.l5.clearError();
+      $('#result_5').addClass('pass').text('Ошибка очищена');
+      log('Уровень 5: clearError()', 'info');
+    });
+
+    $('#btn_check_log_l5').on('click', function () {
+      $('#log_stats').show();
+      $('#warn_count').text(warnCount);
+      $('#error_count').text(errorCount);
+      log(`Проверка логов: warn=${warnCount}, error=${errorCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Статистика логов
+    // ========================================================================
+    $('#btn_count_warn').on('click', function () {
+      $('#log_stats').show();
+      $('#warn_count').text(warnCount);
+      log(`warn count: ${warnCount}`, 'info');
+    });
+
+    $('#btn_count_error').on('click', function () {
+      $('#log_stats').show();
+      $('#error_count').text(errorCount);
+      log(`error count: ${errorCount}`, 'info');
+    });
+
+    // ========================================================================
+    // Авто-тест
+    // ========================================================================
+    async function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function runAutoTestAll() {
+      if (autoTestRunning) return;
+      autoTestRunning = true;
+
+      $('#auto_test_status').show();
+      $('#auto_test_status_text').text('Запуск тестов...');
+
+      log('=== ЗАПУСК АВТО-ТЕСТА ===', 'info');
+
+      // Секция 1
+      $('#auto_test_status_text').text('Секция 1: Уровень 1...');
+      $('#section_1').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_l1').click();
+      await sleep(800);
+      $('#btn_clear_l1').click();
+      await sleep(500);
+      $('#section_1').removeClass('auto-test-running');
+
+      // Секция 2
+      $('#auto_test_status_text').text('Секция 2: Уровень 2...');
+      $('#section_2').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_l2').click();
+      await sleep(800);
+      $('#btn_clear_l2').click();
+      await sleep(500);
+      $('#section_2').removeClass('auto-test-running');
+
+      // Секция 3
+      $('#auto_test_status_text').text('Секция 3: Уровень 3...');
+      $('#section_3').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_l3').click();
+      await sleep(800);
+      $('#btn_check_log_l3').click();
+      await sleep(500);
+      $('#section_3').removeClass('auto-test-running');
+
+      // Секция 4
+      $('#auto_test_status_text').text('Секция 4: Уровень 4...');
+      $('#section_4').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_l4').click();
+      await sleep(800);
+      $('#btn_check_log_l4').click();
+      await sleep(500);
+      $('#section_4').removeClass('auto-test-running');
+
+      // Секция 5
+      $('#auto_test_status_text').text('Секция 5: Уровень 5...');
+      $('#section_5').addClass('auto-test-running');
+      await sleep(500);
+      $('#btn_validate_l5').click();
+      await sleep(800);
+      $('#btn_check_log_l5').click();
+      await sleep(500);
+      $('#section_5').removeClass('auto-test-running');
+
+      $('#auto_test_status_text').text('✅ Все тесты завершены!');
+      $('#auto_test_status').addClass('alert-success');
+      log('=== АВТО-ТЕСТ ЗАВЕРШЁН ===', 'success');
+
+      autoTestRunning = false;
+    }
+
+    $('#btn_auto_test_all').on('click', runAutoTestAll);
+
+    $('#btn_stop_test').on('click', function () {
+      autoTestRunning = false;
+      $('#auto_test_status').hide();
+      $('.auto-test-running').removeClass('auto-test-running');
+      log('Автотест остановлен пользователем', 'warn');
+    });
+
+    $('#btn_clear_log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен...</small></div>');
+      warnCount = 0;
+      errorCount = 0;
+      $('#log_stats').hide();
+      log('Лог очищен', 'info');
+    });
+
+    // ========================================================================
+    // Инициализация
+    // ========================================================================
+    $(document).ready(function () {
+      initValidators();
+      log('Тест FieldValidator готов к работе', 'success');
+    });
+  </script>
+</body>
+
+</html>

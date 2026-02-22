@@ -40,19 +40,19 @@ export class FieldValidator {
    * @param {FieldErrorRenderer} errorRenderer - рендерер ошибок (обязательно)
    */
   constructor($valueSource, $errorScreen, $root, validationRules, errorRenderer) {
-    // ✅ Проверка обязательного $valueSource
+    // Проверка обязательного $valueSource
     if (!$valueSource || $valueSource.length === 0) {
       logger.error('[FieldValidator] $valueSource is required', 'FieldValidator');
       throw new Error('[FieldValidator] $valueSource is required');
     }
 
-    // ✅ Проверка обязательного errorRenderer (без fallback!)
+    // Проверка обязательного errorRenderer (без fallback!)
     if (!errorRenderer) {
       logger.error('[FieldValidator] errorRenderer is required', 'FieldValidator');
       throw new Error('[FieldValidator] errorRenderer is required');
     }
 
-    // ✅ Проверка validationRules (должен быть массив)
+    // Проверка validationRules (должен быть массив)
     if (!Array.isArray(validationRules)) {
       logger.warn(
         '[FieldValidator] validationRules должен быть массивом. Используется пустой массив.',
@@ -79,7 +79,7 @@ export class FieldValidator {
     this.$root = $root;
     this.errorRenderer = errorRenderer;
 
-    // ✅ Кэширование правил при инициализации
+    // Кэширование правил при инициализации
     this.loadRules();
 
     logger.info(`FieldValidator инициализирован: ${this._getFieldIdentifier()}`, 'FieldValidator');
@@ -94,7 +94,6 @@ export class FieldValidator {
     const id = this.$valueSource.attr('id');
     const name = this.$valueSource.attr('name') || 'unnamed';
 
-    // ⚠️ НОВОЕ: Предупреждение об отсутствии ID
     if (!id) {
       logger.warn(
         `Поле не имеет id атрибута [name=${name}]. Рекомендуется добавить id для лучшей отладки.`,
@@ -166,6 +165,17 @@ export class FieldValidator {
       return this.$valueSource.val() || '';
     }
 
+    if (tagName === 'select') {
+      const val = this.$valueSource.val();
+      const isMultiple = this.$valueSource.prop('multiple');
+      console.log('🔵 SELECT: val =', val, 'isMultiple =', isMultiple, 'type =', typeof val); // ← ДОБАВИТЬ
+      if (isMultiple) {
+        return val !== null ? val : [];
+      }
+      return val || '';
+    }
+
+
     if (this.$valueSource.is('[contenteditable]')) {
       return this.$valueSource.text().trim();
     }
@@ -230,16 +240,6 @@ export class FieldValidator {
    * 
    * @returns {boolean} true если поле валидно, false если есть ошибка
    */
-  /**
-  Валидирует поле по всем подходящим правилам
-  Останавливается на первой ошибке
-  @returns {boolean} true если поле валидно, false если есть ошибка
-  */
-  /**
-  Валидирует поле по всем подходящим правилам
-  Останавливается на первой ошибке
-  @returns {boolean} true если поле валидно, false если есть ошибка
-  */
   validate() {
     // Пропускаем скрытые поля
     if (!this.isVisibleForValidation()) {
@@ -248,17 +248,24 @@ export class FieldValidator {
     }
 
     // Очищаем старые ошибки перед валидацией (идемпотентность)
-    this.errorRenderer.clearError();
+    this.clearError();
 
     // Применяем правила по порядку
     for (const rule of this.applicableRules) {
       const result = rule.validate(this.$valueSource, this);
 
-      if (result === false || (result && !result.valid)) {
-        const params = result && result.params ? result.params : {};
+      // ИЗВЛЕКАЕМ params ИЗ result
+      const params = result && result.params ? result.params : {};
+
+      // Проверяем результат валидации
+      const isError = (result === false) ||
+        (typeof result === 'object' && result !== null && result.valid === false);
+
+      if (isError) {
+        // ТЕПЕРЬ params ОПРЕДЕЛЁН
         const { message, level } = this._getErrorMessageWithLevel(rule, params);
 
-        // ✅ КОМБИНИРОВАННАЯ ПОДСВЕТКА
+        // КОМБИНИРОВАННАЯ ПОДСВЕТКА
         const isGroup = this._isFieldArray();
         const isCheckboxOrRadio = this._isCheckboxOrRadioGroup();
 
@@ -465,10 +472,7 @@ export class FieldValidator {
       message = defaultMessage(params);
     } else {
       message = defaultMessage;
-      Object.entries(params).forEach(([key, value]) => {
-        const regex = new RegExp(`__${key.toUpperCase()}__`, 'g');
-        message = message.replace(regex, value);
-      });
+      message = this._formatMessage(message, params);
     }
 
     return this._formatErrorMessage(message);
@@ -486,7 +490,7 @@ export class FieldValidator {
   }
 
   /**
-   * Форматирует сообщение с подстановкой параметров
+   * Форматирует сообщение с подстановкой параметров (case-insensitive)
    * @private
    * @param {string} message - сообщение
    * @param {Object} params - параметры
@@ -495,9 +499,10 @@ export class FieldValidator {
   _formatMessage(message, params) {
     if (!message) return message;
 
-    return message.replace(/__\w+__/g, match => {
-      const key = match.replace(/__/g, '');
-      return params[key] !== undefined ? params[key] : match;
+    return message.replace(/__\w+__/gi, match => {
+      const key = match.replace(/__/g, '').toLowerCase();
+      const paramKey = Object.keys(params).find(k => k.toLowerCase() === key);
+      return paramKey !== undefined ? params[paramKey] : match;
     });
   }
 
@@ -515,19 +520,16 @@ export class FieldValidator {
 
   /**
    * Очищает ошибки (делегует рендереру)
+   * Удаляет класс is-invalid со всех полей группы
    */
-  /**
-  Очищает ошибки
-  Удаляет класс is-invalid со всех полей группы
-  */
   clearError() {
-    // ✅ Удаляем класс ошибки со ВСЕХ полей в группе
+    // Удаляем класс ошибки со ВСЕХ полей в группе
     this.$valueSource.removeClass('is-invalid');
 
     // Очищаем ошибку через рендерер
     this.errorRenderer.clearError();
 
-    // ✅ Также очищаем ошибку на контейнере (если есть)
+    // Также очищаем ошибку на контейнере (если есть)
     if (this._isFieldArray() && this._isCheckboxOrRadioGroup()) {
       const $container = this.$valueSource.first().closest('.form-group');
       if ($container.length > 0) {
