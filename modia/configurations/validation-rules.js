@@ -10,45 +10,111 @@
  * ✅ Каждое правило самодостаточно
  * ✅ Поддержка 5 уровней иерархии сообщений
  * ✅ Расширяемость — новое правило = добавить объект в массив
- */
+*/
 
 // ============================================================================
-// HELPER FUNCTIONS (чистые, без зависимостей)
+// UTILS (чистые, кэшируемые)
 // ============================================================================
 
 /**
- * Проверяет, является ли значение пустым
- * @param {*} value - Значение для проверки
+ * Нормализует значение в массив для единообразной обработки
+ * @param {*} value 
+ * @returns {Array}
+ */
+const normalizeValue = (value) => Array.isArray(value) ? value : [value];
+
+/**
+ * Проверяет пустоту значения (оптимизировано для валидации полей)
+ * @param {*} value
  * @returns {boolean}
  */
-function isEmpty(value) {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string' && value.trim() === '') return true;
-  if (Array.isArray(value) && value.length === 0) return true;
-  if (Array.isArray(value) && value.every(v => isEmpty(v))) return true;
+const isEmpty = (value) => {
+  if (value == null) return true; // null || undefined
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0 || value.every(isEmpty);
   return false;
-}
+};
 
 /**
- * Форматирует сообщение с подстановкой параметров (case-insensitive)
- * @param {string} template - Шаблон сообщения
- * @param {Object} params - Параметры для подстановки
+ * Форматирует сообщение (упрощённый, case-sensitive по умолчанию)
+ * @param {string} template
+ * @param {Object} params
  * @returns {string}
  */
 function formatMessage(template, params) {
   if (!template || !params) return template;
 
-  return template.replace(/__\w+__/gi, match => {
-    const key = match.replace(/__/g, '').toLowerCase();
+  return template.replace(/__([A-Za-z_]+)__/g, (match, placeholder) => {
+    const key = placeholder.toLowerCase();
     const paramKey = Object.keys(params).find(k => k.toLowerCase() === key);
     return paramKey !== undefined ? params[paramKey] : match;
   });
 }
 
 // ============================================================================
-// VALIDATION RULES
+// RULE FACTORY (DRY: общие паттерны)
 // ============================================================================
 
+/**
+ * Создаёт правило для проверки длины (min/max)
+ * @param {Object} config
+ * @returns {ValidationRule}
+ */
+const createLengthRule = ({ name, selector, templateId, defaultMessage, type }) => ({
+  name,
+  selector,
+  templateId,
+  defaultMessage,
+  messageLevel: 4,
+
+  validate($field, validator) {
+    const limit = parseInt($field.data(name), 10);
+    if (isNaN(limit)) return true;
+
+    const values = normalizeValue(validator.getFieldValue());
+    const total = values.reduce((sum, v) => sum + (v?.length || 0), 0);
+
+    const invalid = type === 'max' ? total > limit : total < limit;
+    return invalid
+      ? { valid: false, params: { count: limit, current: total } }
+      : true;
+  }
+});
+
+/**
+ * Создаёт правило для проверки по regex
+ * @param {Object} config
+ * @returns {ValidationRule}
+ */
+const createRegexRule = ({ name, selector, templateId, defaultMessage, patternSource, regex }) => ({
+  name,
+  selector,
+  templateId,
+  defaultMessage,
+  messageLevel: 4,
+
+  validate($field, validator) {
+    const pattern = patternSource === 'data'
+      ? $field.data(name)
+      : $field.attr(name);
+
+    if (!pattern) return true;
+
+    const values = normalizeValue(validator.getFieldValue());
+
+    try {
+      const testRegex = regex || new RegExp(patternSource === 'attr' ? `^${pattern}$` : pattern);
+      const isValid = values.every(v => !v || testRegex.test(v));
+      return isValid ? true : { valid: false, params: { [name]: pattern } };
+    } catch {
+      return true; // Неверный regex — пропускаем
+    }
+  }
+});
+
+// ============================================================================
+// RULES EXPORT
+// ============================================================================
 /**
  * @typedef {Object} ValidationRule
  * @property {string} name - Уникальное имя (kebab-case)
@@ -67,9 +133,7 @@ function formatMessage(template, params) {
  * Поддерживает массивы полей — проверяет, что хотя бы один элемент заполнен
  */
 export const validationRules = [
-  // --------------------------------------------------------------------------
-  // Правило 1: Required
-  // --------------------------------------------------------------------------
+  // Required
   {
     name: 'required',
     selector: '[required]',
@@ -77,152 +141,49 @@ export const validationRules = [
     defaultMessage: 'Обязательное поле',
     messageLevel: 4,
 
-    /**
-     * @param {jQuery} $field - Поле для валидации
-     * @param {FieldValidator} validator - Валидатор (для getFieldValue())
-     * @returns {boolean|{valid: boolean, params: Object}}
-     */
     validate($field, validator) {
-      let value = validator.getFieldValue();
-
-      // Преобразуем в массив для единообразной обработки
-      if (!Array.isArray(value)) {
-        value = [value];
-      }
-
-      // Проверяем, есть ли хотя бы одно непустое значение
-      const hasFilledValue = value.some(val => !isEmpty(val));
-
-      return hasFilledValue ? true : { valid: false, params: {} };
+      const values = normalizeValue(validator.getFieldValue());
+      const hasValue = values.some(v => !isEmpty(v));
+      return hasValue ? true : { valid: false, params: {} };
     }
   },
 
-  // --------------------------------------------------------------------------
-  // Правило 2: MaxLength
-  // --------------------------------------------------------------------------
-  {
+  // Length rules (DRY)
+  createLengthRule({
     name: 'max-length',
     selector: '[data-max-length]',
     templateId: 'max_length_error_span',
     defaultMessage: 'Максимальная длина: __COUNT__ символов',
-    messageLevel: 4,
+    type: 'max'
+  }),
 
-    validate($field, validator) {
-      const maxLength = parseInt($field.data('max-length'), 10);
-      if (isNaN(maxLength)) return true;
-
-      const value = validator.getFieldValue();
-      const values = Array.isArray(value) ? value : [value];
-      const totalLength = values.reduce((sum, v) => sum + (v?.length || 0), 0);
-
-      if (totalLength > maxLength) {
-        return {
-          valid: false,
-          params: { count: maxLength, current: totalLength }
-        };
-      }
-
-      return true;
-    }
-  },
-
-  // --------------------------------------------------------------------------
-  // Правило 3: Format (Regex)
-  // --------------------------------------------------------------------------
-  {
-    name: 'format',
-    selector: '[data-format]',
-    templateId: 'format-error-span',
-    defaultMessage: 'Неверный формат поля',
-    messageLevel: 4,
-
-    validate($field, validator) {
-      const pattern = $field.data('format');
-      if (!pattern) return true;
-
-      const value = validator.getFieldValue();
-      const values = Array.isArray(value) ? value : [value];
-
-      try {
-        const regex = new RegExp(pattern);
-        const isValid = values.every(v => !v || regex.test(v));
-
-        if (!isValid) {
-          return { valid: false, params: { format: pattern } };
-        }
-      } catch (e) {
-        // Неверный regex — пропускаем правило
-        return true;
-      }
-
-      return true;
-    }
-  },
-
-  // --------------------------------------------------------------------------
-  // Правило 4: MinLength
-  // --------------------------------------------------------------------------
-  {
+  createLengthRule({
     name: 'min-length',
     selector: '[data-min-length]',
     templateId: 'min_length_error_span',
     defaultMessage: 'Минимальная длина: __COUNT__ символов',
-    messageLevel: 4,
+    type: 'min'
+  }),
 
-    validate($field, validator) {
-      const minLength = parseInt($field.data('min-length'), 10);
-      if (isNaN(minLength)) return true;
+  // Regex rules (DRY)
+  createRegexRule({
+    name: 'format',
+    selector: '[data-format]',
+    templateId: 'format-error-span',
+    defaultMessage: 'Неверный формат поля',
+    patternSource: 'data'
+  }),
 
-      const value = validator.getFieldValue();
-      const values = Array.isArray(value) ? value : [value];
-      const totalLength = values.reduce((sum, v) => sum + (v?.length || 0), 0);
-
-      if (totalLength < minLength) {
-        return {
-          valid: false,
-          params: { count: minLength, current: totalLength }
-        };
-      }
-
-      return true;
-    }
-  },
-
-  // --------------------------------------------------------------------------
-  // Правило 5: Pattern (HTML5)
-  // --------------------------------------------------------------------------
-  {
+  createRegexRule({
     name: 'pattern',
     selector: '[pattern]',
     templateId: 'pattern-error-span',
     defaultMessage: 'Поле не соответствует шаблону',
-    messageLevel: 4,
+    patternSource: 'attr',
+    regex: null // Использует ^pattern$
+  }),
 
-    validate($field, validator) {
-      const pattern = $field.attr('pattern');
-      if (!pattern) return true;
-
-      const value = validator.getFieldValue();
-      const values = Array.isArray(value) ? value : [value];
-
-      try {
-        const regex = new RegExp(`^${pattern}$`);
-        const isValid = values.every(v => !v || regex.test(v));
-
-        if (!isValid) {
-          return { valid: false, params: { pattern } };
-        }
-      } catch (e) {
-        return true;
-      }
-
-      return true;
-    }
-  },
-
-  // --------------------------------------------------------------------------
-  // Правило 6: Email (специализированный format)
-  // --------------------------------------------------------------------------
+  // Email — специализированный regex (не DRY, т.к. фиксированный паттерн)
   {
     name: 'email',
     selector: 'input[type="email"]',
@@ -231,63 +192,41 @@ export const validationRules = [
     messageLevel: 4,
 
     validate($field, validator) {
-      const value = validator.getFieldValue();
-      const values = Array.isArray(value) ? value : [value];
-
-      // HTML5 email regex (упрощённый)
+      const values = normalizeValue(validator.getFieldValue());
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       const isValid = values.every(v => !v || emailRegex.test(v));
-
-      if (!isValid) {
-        return { valid: false, params: {} };
-      }
-
-      return true;
+      return isValid ? true : { valid: false, params: {} };
     }
   },
 
-  // --------------------------------------------------------------------------
-  // Правило 7: AJAX (задел на будущее, v1.3+)
-  // --------------------------------------------------------------------------
+  // AJAX — заглушка (YAGNI: не реализовано до v1.3)
   {
     name: 'ajax',
     selector: '[data-ajax-validate]',
     templateId: 'ajax-error-span',
     defaultMessage: 'Проверка не пройдена',
     messageLevel: 4,
-
-    validate($field, validator) {
-      const url = $field.data('ajax-validate');
-      if (!url) return true;
-
-      // ⚠️ AJAX валидация требует асинхронной поддержки
-      // Пока возвращаем true, реализация в v1.3+
-      return true;
-    }
+    validate: () => true // Заглушка
   },
 
-  // --------------------------------------------------------------------------
-  // Правило 8: Custom (для динамических правил)
-  // --------------------------------------------------------------------------
+  // Custom — для динамических правил
   {
     name: 'custom',
     selector: '[data-validate-custom]',
     templateId: 'custom-error-span',
-    defaultMessage: 'Пользовательская ошибка валидации',
+    defaultMessage: 'Пользовательская ошибка',
     messageLevel: 4,
 
     validate($field, validator) {
-      const customValidator = $field.data('validate-custom');
-      if (!customValidator || typeof customValidator !== 'function') return true;
+      const fn = $field.data('validate-custom');
+      if (typeof fn !== 'function') return true;
 
       const value = validator.getFieldValue();
-      const result = customValidator(value, $field);
+      const result = fn(value, $field);
 
-      if (result === false || (result && result.valid === false)) {
-        return { valid: false, params: result?.params || {} };
-      }
-
-      return true;
+      return (result === true)
+        ? true
+        : { valid: false, params: result?.params || {} };
     }
   }
 ];
@@ -295,6 +234,5 @@ export const validationRules = [
 // ============================================================================
 // EXPORTS
 // ============================================================================
-
 export default validationRules;
-export { isEmpty, formatMessage };
+export { isEmpty, formatMessage, normalizeValue };

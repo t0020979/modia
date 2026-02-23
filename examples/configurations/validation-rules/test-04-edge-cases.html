@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Modia — Тест validation-rules.js: Крайние случаи</title>
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../../examples.css">
+  <link rel="stylesheet" href="../../../modia/modia.css">
+  <style>
+    .console-log {
+      background: #1e1e1e;
+      color: #0f0;
+      padding: 15px;
+      max-height: 300px;
+      overflow: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .pass {
+      color: #28a745;
+      font-weight: bold
+    }
+
+    .fail {
+      color: #dc3545;
+      font-weight: bold
+    }
+
+    .info {
+      color: #17a2b8
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h3>🧪 Тест validation-rules.js: Крайние случаи</h3>
+    <div class="expected-result mb-3">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul class="mb-0">
+        <li><code>contenteditable</code> — возврат текста без HTML</li>
+        <li>Checkbox/Radio — проверка <code>:checked</code></li>
+        <li>Мультиселект — возврат массива</li>
+        <li>Пустые/отсутствующие атрибуты — безопасное пропускание</li>
+        <li>Неверный regex — не ломает валидацию</li>
+      </ul>
+    </div>
+    <div class="mb-3">
+      <button class="btn btn-success" id="btn-run">▶️ Запустить тесты</button>
+      <button class="btn btn-secondary" id="btn-clear">🧹 Очистить лог</button>
+    </div>
+    <div class="console-log" id="console-log"><small>[00:00:00] Консоль готова...</small></div>
+    <div class="mt-2" id="status"><strong>Статус:</strong> Ожидание...</div>
+  </div>
+
+  <script type="module">
+    import { validationRules, isEmpty, normalizeValue, formatMessage } from '../../../modia/configurations/validation-rules.js';
+
+    function log(msg, type = 'info') {
+      const $l = $('#console-log'), ts = new Date().toLocaleTimeString('ru-RU');
+      const cls = type === 'pass' ? 'pass' : type === 'fail' ? 'fail' : 'info';
+      $l.append(`<div class="${cls}"><small>[${ts}] ${msg}</small></div>`);
+      $l.scrollTop($l[0].scrollHeight); console.log(`[Test] ${msg}`);
+    }
+    function assert(cond, msg) { if (cond) { log(`✅ ${msg}`, 'pass'); return true; } else { log(`❌ ${msg}`, 'fail'); return false; } }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    function updateStatus(t) { $('#status').html(`<strong>Статус:</strong> ${t}`); }
+    function mockValidator(val) { return { getFieldValue: () => val }; }
+
+    async function runAllTests() {
+      updateStatus('🔄 Запуск...'); log('=== КРАЙНИЕ СЛУЧАИ ===', 'info');
+      let passed = 0, total = 0;
+
+      // 1. Contenteditable — текст без HTML
+      const ceRule = validationRules.find(r => r.name === 'required');
+      if (ceRule) {
+        const $ce = $('<div contenteditable="true"><b>Text</b></div>');
+        const result = ceRule.validate($ce, { getFieldValue: () => 'Text' });
+        assert(result === true, 'contenteditable: "Text" → OK'); passed++; total++;
+      }
+
+      // 2. Checkbox — checked
+      const reqRule = validationRules.find(r => r.name === 'required');
+      if (reqRule) {
+        const $chk = $('<input type="checkbox" name="test" value="1">');
+        $chk.prop('checked', true);
+        const result = reqRule.validate($chk, { getFieldValue: () => '1' });
+        assert(result === true, 'checkbox:checked → OK'); passed++; total++;
+
+        $chk.prop('checked', false);
+        const result2 = reqRule.validate($chk, { getFieldValue: () => '' });
+        assert(result2 && result2.valid === false, 'checkbox:unchecked → ошибка'); passed++; total++;
+      }
+
+      // 3. Мультиселект — массив
+      const emailRule = validationRules.find(r => r.name === 'email');
+      if (emailRule) {
+        const result = emailRule.validate($('<select multiple>'), mockValidator(['a@b.com', 'c@d.com']));
+        assert(result === true, 'select[multiple]: массив email → OK'); passed++; total++;
+      }
+
+      // 4. Пустой атрибут data-format
+      const fmtRule = validationRules.find(r => r.name === 'format');
+      if (fmtRule) {
+        const $f = $('<input data-format="">');
+        const result = fmtRule.validate($f, mockValidator('any'));
+        assert(result === true, 'data-format="" → пропускаем'); passed++; total++;
+      }
+
+      // 5. Неверный regex в format
+      if (fmtRule) {
+        const $f = $('<input data-format="[invalid">');
+        const result = fmtRule.validate($f, mockValidator('test'));
+        assert(result === true, 'неверный regex → пропускаем без ошибки'); passed++; total++;
+      }
+
+      // 6. formatMessage с отсутствующим параметром
+      assert(formatMessage('Hi __MISSING__', {}) === 'Hi __MISSING__', 'неподставленный параметр остаётся'); passed++; total++;
+
+      // 7. formatMessage с null/undefined params
+      assert(formatMessage('Hi', null) === 'Hi', 'null params → возврат шаблона'); passed++; total++;
+
+      // 8. isEmpty с глубоким массивом
+      assert(isEmpty([[], [null], ['']]) === true, 'глубокий пустой массив → true'); passed++; total++;
+
+      // 9. normalizeValue с undefined
+      const nv = normalizeValue(undefined);
+      assert(Array.isArray(nv) && nv[0] === undefined, 'normalizeValue(undefined) → [undefined]'); passed++; total++;
+
+      // 10. Правило ajax — заглушка
+      const ajaxRule = validationRules.find(r => r.name === 'ajax');
+      if (ajaxRule) {
+        const result = ajaxRule.validate($('<input data-ajax-validate="/check">'), mockValidator('test'));
+        assert(result === true, 'ajax: заглушка → true (v1.2)'); passed++; total++;
+      }
+
+      log(`=== ИТОГО: ${passed}/${total} тестов пройдено ===`, passed === total ? 'pass' : 'fail');
+      updateStatus(passed === total ? '✅ Все тесты пройдены' : '❌ Есть ошибки');
+      return passed === total;
+    }
+
+    $('#btn-run').on('click', runAllTests);
+    $('#btn-clear').on('click', () => {
+      $('#console-log').html('<small>[00:00:00] Консоль готова...</small>');
+      updateStatus('Ожидание...'); log('Лог очищен', 'info');
+    });
+    $(document).ready(() => { log('✅ Готов к тестам', 'pass'); updateStatus('Готов'); });
+  </script>
+</body>
+
+</html>

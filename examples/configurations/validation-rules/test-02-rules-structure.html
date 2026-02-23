@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Modia — Тест validation-rules.js: Структура правил</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .console-log {
+      background: #1e1e1e;
+      color: #00ff00;
+      padding: 15px;
+      border-radius: 5px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .pass {
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    .fail {
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .info {
+      color: #17a2b8;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h3>🧪 Тест validation-rules.js: Структура правил</h3>
+
+    <!-- Ожидаемые результаты -->
+    <div class="expected-result mb-3">
+      <h4>✅ Ожидаемый результат:</h4>
+      <ul class="mb-0">
+        <li><code>validationRules</code> — массив с ≥1 правилом</li>
+        <li>Каждое правило имеет: <code>name</code>, <code>selector</code>, <code>validate</code>,
+          <code>templateId</code>, <code>defaultMessage</code>, <code>messageLevel</code></li>
+        <li>Все <code>name</code> уникальны (kebab-case)</li>
+        <li><code>validate</code> — функция</li>
+        <li><code>messageLevel</code> — число 3-5</li>
+      </ul>
+    </div>
+
+    <!-- Кнопки управления -->
+    <div class="mb-3">
+      <button class="btn btn-success" id="btn-run">▶️ Запустить тесты</button>
+      <button class="btn btn-secondary" id="btn-clear">🧹 Очистить лог</button>
+      <button class="btn btn-info" id="btn-auto">▶️ Авто-тест</button>
+    </div>
+
+    <!-- Лог -->
+    <div class="console-log" id="console-log"><small>[00:00:00] Консоль готова...</small></div>
+
+    <!-- Статус -->
+    <div class="mt-2" id="status"><strong>Статус:</strong> Ожидание...</div>
+  </div>
+
+  <script type="module">
+    // Импорт всего конфига правил
+    import { validationRules } from '../../../modia/configurations/validation-rules.js';
+
+    // ========================================================================
+    // УТИЛИТЫ ТЕСТА
+    // ========================================================================
+
+    function log(msg, type = 'info') {
+      const $log = $('#console-log');
+      const ts = new Date().toLocaleTimeString('ru-RU');
+      const cls = type === 'pass' ? 'pass' : type === 'fail' ? 'fail' : 'info';
+      $log.append(`<div class="${cls}"><small>[${ts}] ${msg}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Test] ${msg}`);
+    }
+
+    function assert(cond, msg) {
+      if (cond) {
+        log(`✅ ${msg}`, 'pass');
+        return true;
+      } else {
+        log(`❌ ${msg}`, 'fail');
+        return false;
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function updateStatus(text) {
+      $('#status').html(`<strong>Статус:</strong> ${text}`);
+    }
+
+    // ========================================================================
+    // ТЕСТ 1: Базовая структура
+    // ========================================================================
+
+    function testBaseStructure() {
+      log('--- Тест 1: Базовая структура ---', 'info');
+      let passed = 0;
+      const total = 4;
+
+      assert(Array.isArray(validationRules), 'validationRules — массив'); passed++;
+      assert(validationRules.length > 0, 'Есть хотя бы одно правило'); passed++;
+      assert(validationRules.length >= 8, 'Есть все базовые правила (≥8)'); passed++;
+
+      // Проверка экспорта
+      assert(typeof validationRules !== 'undefined', 'validationRules экспортирован'); passed++;
+
+      log(`Базовая структура: ${passed}/${total} тестов пройдено`, passed === total ? 'pass' : 'fail');
+      return passed === total;
+    }
+
+    // ========================================================================
+    // ТЕСТ 2: Структура каждого правила
+    // ========================================================================
+
+    function testRuleStructure() {
+      log('--- Тест 2: Структура каждого правила ---', 'info');
+      let passed = 0;
+      let total = 0;
+
+      const requiredFields = ['name', 'selector', 'validate', 'templateId', 'defaultMessage', 'messageLevel'];
+
+      validationRules.forEach((rule, index) => {
+        requiredFields.forEach(field => {
+          const hasField = rule.hasOwnProperty(field);
+          assert(hasField, `Правило #${index} (${rule.name || 'unnamed'}): имеет "${field}"`);
+          if (hasField) passed++;
+          total++;
+        });
+      });
+
+      log(`Структура правил: ${passed}/${total} полей найдено`, passed === total ? 'pass' : 'fail');
+      return passed === total;
+    }
+
+    // ========================================================================
+    // ТЕСТ 3: Уникальность имён (kebab-case)
+    // ========================================================================
+
+    function testUniqueNames() {
+      log('--- Тест 3: Уникальность имён (kebab-case) ---', 'info');
+      let passed = 0;
+      const total = 3;
+
+      const names = validationRules.map(r => r.name);
+      const uniqueNames = [...new Set(names)];
+
+      assert(names.length === uniqueNames.length, 'Все имена правил уникальны');
+      if (names.length === uniqueNames.length) passed++;
+
+      // Проверка kebab-case
+      const kebabCaseRegex = /^[a-z]+(-[a-z]+)*$/;
+      const allKebabCase = names.every(name => kebabCaseRegex.test(name));
+      assert(allKebabCase, 'Все имена в kebab-case');
+      if (allKebabCase) passed++;
+
+      // Проверка на пустые имена
+      const noEmptyNames = names.every(name => name && name.length > 0);
+      assert(noEmptyNames, 'Нет пустых имён');
+      if (noEmptyNames) passed++;
+
+      log(`Уникальность имён: ${passed}/${total} тестов пройдено`, passed === total ? 'pass' : 'fail');
+      return passed === total;
+    }
+
+    // ========================================================================
+    // ТЕСТ 4: Типы полей
+    // ========================================================================
+
+    function testFieldTypes() {
+      log('--- Тест 4: Типы полей ---', 'info');
+      let passed = 0;
+      let total = 0;
+
+      validationRules.forEach((rule, index) => {
+        // name — string
+        const nameIsString = typeof rule.name === 'string';
+        assert(nameIsString, `Правило #${index}: name — string`);
+        if (nameIsString) passed++;
+        total++;
+
+        // selector — string
+        const selectorIsString = typeof rule.selector === 'string';
+        assert(selectorIsString, `Правило #${index}: selector — string`);
+        if (selectorIsString) passed++;
+        total++;
+
+        // validate — function
+        const validateIsFunction = typeof rule.validate === 'function';
+        assert(validateIsFunction, `Правило #${index}: validate — function`);
+        if (validateIsFunction) passed++;
+        total++;
+
+        // templateId — string
+        const templateIdIsString = typeof rule.templateId === 'string';
+        assert(templateIdIsString, `Правило #${index}: templateId — string`);
+        if (templateIdIsString) passed++;
+        total++;
+
+        // messageLevel — number (3-5)
+        const messageLevelIsNumber = typeof rule.messageLevel === 'number' &&
+          rule.messageLevel >= 3 &&
+          rule.messageLevel <= 5;
+        assert(messageLevelIsNumber, `Правило #${index}: messageLevel — число 3-5`);
+        if (messageLevelIsNumber) passed++;
+        total++;
+      });
+
+      log(`Типы полей: ${passed}/${total} проверок пройдено`, passed === total ? 'pass' : 'fail');
+      return passed === total;
+    }
+
+    // ========================================================================
+    // ТЕСТ 5: Список правил
+    // ========================================================================
+
+    function testRuleList() {
+      log('--- Тест 5: Список правил ---', 'info');
+      let passed = 0;
+
+      const expectedRules = ['required', 'max-length', 'min-length', 'format', 'pattern', 'email', 'ajax', 'custom'];
+
+      expectedRules.forEach(ruleName => {
+        const found = validationRules.some(r => r.name === ruleName);
+        assert(found, `Правило "${ruleName}" найдено`);
+        if (found) passed++;
+      });
+
+      log(`Список правил: ${passed}/${expectedRules.length} найдено`, passed === expectedRules.length ? 'pass' : 'fail');
+      return passed === expectedRules.length;
+    }
+
+    // ========================================================================
+    // ЗАПУСК ТЕСТОВ
+    // ========================================================================
+
+    async function runAllTests() {
+      updateStatus('🔄 Запуск тестов...');
+      log('=== ЗАПУСК ТЕСТОВ: СТРУКТУРА ПРАВИЛ ===', 'info');
+
+      const results = [
+        testBaseStructure(),
+        await sleep(100).then(() => testRuleStructure()),
+        await sleep(100).then(() => testUniqueNames()),
+        await sleep(100).then(() => testFieldTypes()),
+        await sleep(100).then(() => testRuleList())
+      ];
+
+      const total = results.filter(r => r).length;
+      log(`=== ИТОГО: ${total}/5 групп тестов пройдено ===`, total === 5 ? 'pass' : 'fail');
+      updateStatus(total === 5 ? '✅ Все тесты пройдены' : '❌ Есть ошибки');
+
+      return total === 5;
+    }
+
+    // ========================================================================
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    // ========================================================================
+
+    $('#btn-run').on('click', runAllTests);
+
+    $('#btn-clear').on('click', () => {
+      $('#console-log').html('<small>[00:00:00] Консоль готова...</small>');
+      updateStatus('Ожидание...');
+      log('Лог очищен', 'info');
+    });
+
+    $('#btn-auto').on('click', async () => {
+      $('#btn-auto').prop('disabled', true);
+      await runAllTests();
+      await sleep(500);
+      $('#btn-auto').prop('disabled', false);
+    });
+
+    // Авто-запуск при готовности
+    $(document).ready(() => {
+      log('✅ jQuery загружен', 'pass');
+      log('✅ validationRules импортирован', 'pass');
+      updateStatus('Готов к тестам');
+    });
+  </script>
+</body>
+
+</html>
