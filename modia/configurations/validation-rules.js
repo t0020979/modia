@@ -1,7 +1,7 @@
 /**
  * Validation Rules Configuration
  * Модуль: modia/configurations/validation-rules.js
- * Версия: 1.2.0
+ * Версия: 1.2.1 (компромиссная)
  * Дата: 2026-02-20
  * 
  * Принципы:
@@ -10,114 +10,76 @@
  * ✅ Каждое правило самодостаточно
  * ✅ Поддержка 5 уровней иерархии сообщений
  * ✅ Расширяемость — новое правило = добавить объект в массив
-*/
+ * ✅ Явные функции и JSDoc — для читаемости
+ */
 
 // ============================================================================
-// UTILS (чистые, кэшируемые)
+// HELPER FUNCTIONS (чистые, без зависимостей)
 // ============================================================================
 
 /**
  * Нормализует значение в массив для единообразной обработки
- * @param {*} value 
- * @returns {Array}
+ * @param {*} value - Значение для нормализации
+ * @returns {Array} - Массив значений
  */
-const normalizeValue = (value) => Array.isArray(value) ? value : [value];
+function normalizeValue(value) {
+  return Array.isArray(value) ? value : [value];
+}
 
 /**
- * Проверяет пустоту значения (оптимизировано для валидации полей)
- * @param {*} value
- * @returns {boolean}
+ * Проверяет, является ли значение пустым
+ * @param {*} value - Значение для проверки
+ * @returns {boolean} - true если значение пустое
  */
-const isEmpty = (value) => {
-  if (value == null) return true; // null || undefined
-  if (typeof value === 'string') return value.trim() === '';
-  if (Array.isArray(value)) return value.length === 0 || value.every(isEmpty);
+function isEmpty(value) {
+  // Явные проверки для читаемости
+  if (value === null || value === undefined) {
+    return true;
+  }
+  if (typeof value === 'string' && value.trim() === '') {
+    return true;
+  }
+  if (Array.isArray(value) && value.length === 0) {
+    return true;
+  }
+  if (Array.isArray(value) && value.every(function (v) { return isEmpty(v); })) {
+    return true;
+  }
   return false;
-};
+}
 
 /**
- * Форматирует сообщение (упрощённый, case-sensitive по умолчанию)
- * @param {string} template
- * @param {Object} params
- * @returns {string}
+ * Форматирует сообщение с подстановкой параметров (case-insensitive)
+ * @param {string} template - Шаблон сообщения с плейсхолдерами __KEY__
+ * @param {Object} params - Объект параметров для подстановки
+ * @returns {string} - Отформатированное сообщение
+ * 
+ * @example
+ * formatMessage('Max: __COUNT__', { count: 10 }) // → 'Max: 10'
+ * formatMessage('Hi __NAME__', { NAME: 'Alex' }) // → 'Hi Alex' (регистр не важен)
  */
 function formatMessage(template, params) {
-  if (!template || !params) return template;
+  if (!template || !params) {
+    return template;
+  }
 
-  return template.replace(/__([A-Za-z_]+)__/g, (match, placeholder) => {
+  // ✅ Только плейсхолдеры __KEY__, не любые слова
+  return template.replace(/__([A-Za-z_]+)__/g, function (match, placeholder) {
     const key = placeholder.toLowerCase();
-    const paramKey = Object.keys(params).find(k => k.toLowerCase() === key);
+    const paramKey = Object.keys(params).find(function (k) {
+      return k.toLowerCase() === key;
+    });
     return paramKey !== undefined ? params[paramKey] : match;
   });
 }
 
 // ============================================================================
-// RULE FACTORY (DRY: общие паттерны)
+// VALIDATION RULES
 // ============================================================================
 
-/**
- * Создаёт правило для проверки длины (min/max)
- * @param {Object} config
- * @returns {ValidationRule}
- */
-const createLengthRule = ({ name, selector, templateId, defaultMessage, type }) => ({
-  name,
-  selector,
-  templateId,
-  defaultMessage,
-  messageLevel: 4,
-
-  validate($field, validator) {
-    const limit = parseInt($field.data(name), 10);
-    if (isNaN(limit)) return true;
-
-    const values = normalizeValue(validator.getFieldValue());
-    const total = values.reduce((sum, v) => sum + (v?.length || 0), 0);
-
-    const invalid = type === 'max' ? total > limit : total < limit;
-    return invalid
-      ? { valid: false, params: { count: limit, current: total } }
-      : true;
-  }
-});
-
-/**
- * Создаёт правило для проверки по regex
- * @param {Object} config
- * @returns {ValidationRule}
- */
-const createRegexRule = ({ name, selector, templateId, defaultMessage, patternSource, regex }) => ({
-  name,
-  selector,
-  templateId,
-  defaultMessage,
-  messageLevel: 4,
-
-  validate($field, validator) {
-    const pattern = patternSource === 'data'
-      ? $field.data(name)
-      : $field.attr(name);
-
-    if (!pattern) return true;
-
-    const values = normalizeValue(validator.getFieldValue());
-
-    try {
-      const testRegex = regex || new RegExp(patternSource === 'attr' ? `^${pattern}$` : pattern);
-      const isValid = values.every(v => !v || testRegex.test(v));
-      return isValid ? true : { valid: false, params: { [name]: pattern } };
-    } catch {
-      return true; // Неверный regex — пропускаем
-    }
-  }
-});
-
-// ============================================================================
-// RULES EXPORT
-// ============================================================================
 /**
  * @typedef {Object} ValidationRule
- * @property {string} name - Уникальное имя (kebab-case)
+ * @property {string} name - Уникальное имя правила (kebab-case)
  * @property {string} selector - CSS-селектор для отбора полей
  * @property {Function} validate - Функция валидации: ($field, validator) → boolean|{valid, params}
  * @property {string} [templateId] - ID legacy-шаблона (уровень 3 иерархии)
@@ -126,64 +88,229 @@ const createRegexRule = ({ name, selector, templateId, defaultMessage, patternSo
  */
 
 /**
- * Правило валидации "Обязательное поле"
- * 
- * Селектор: [required]
- * Проверяет, что поле не пустое (после удаления пробелов)
- * Поддерживает массивы полей — проверяет, что хотя бы один элемент заполнен
+ * Массив правил валидации
+ * @type {ValidationRule[]}
  */
 export const validationRules = [
-  // Required
+
+  // --------------------------------------------------------------------------
+  // Правило 1: Required
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Обязательное поле"
+   * Проверяет, что поле не пустое (после удаления пробелов)
+   * Поддерживает массивы полей — хотя бы один элемент заполнен
+   */
   {
+    /** @type {string} */
     name: 'required',
+
+    /** @type {string} */
     selector: '[required]',
+
+    /** @type {string} */
     templateId: 'error_span',
+
+    /** @type {string} */
     defaultMessage: 'Обязательное поле',
+
+    /** @type {number} */
     messageLevel: 4,
 
-    validate($field, validator) {
-      const values = normalizeValue(validator.getFieldValue());
-      const hasValue = values.some(v => !isEmpty(v));
-      return hasValue ? true : { valid: false, params: {} };
+    /**
+     * Функция валидации
+     * @param {jQuery} $field - Поле для валидации
+     * @param {FieldValidator} validator - Валидатор (для getFieldValue())
+     * @returns {boolean|{valid: boolean, params: Object}}
+     */
+    validate: function ($field, validator) {
+      const value = validator.getFieldValue();
+      const values = normalizeValue(value);
+
+      // Проверяем, есть ли хотя бы одно непустое значение
+      const hasFilledValue = values.some(function (val) {
+        return !isEmpty(val);
+      });
+
+      return hasFilledValue
+        ? true
+        : { valid: false, params: {} };
     }
   },
 
-  // Length rules (DRY)
-  createLengthRule({
+  // --------------------------------------------------------------------------
+  // Правило 2: MaxLength
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Максимальная длина"
+   * Проверяет, что общая длина значения не превышает лимит
+   */
+  {
     name: 'max-length',
     selector: '[data-max-length]',
     templateId: 'max_length_error_span',
     defaultMessage: 'Максимальная длина: __COUNT__ символов',
-    type: 'max'
-  }),
+    messageLevel: 4,
 
-  createLengthRule({
+    validate: function ($field, validator) {
+      const maxLength = parseInt($field.data('max-length'), 10);
+
+      // Если атрибут не задан или не число — пропускаем правило
+      if (isNaN(maxLength)) {
+        return true;
+      }
+
+      const value = validator.getFieldValue();
+      const values = normalizeValue(value);
+
+      // Считаем общую длину всех значений
+      const totalLength = values.reduce(function (sum, v) {
+        return sum + (v?.length || 0);
+      }, 0);
+
+      if (totalLength > maxLength) {
+        return {
+          valid: false,
+          params: { count: maxLength, current: totalLength }
+        };
+      }
+
+      return true;
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // Правило 3: MinLength
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Минимальная длина"
+   * Проверяет, что общая длина значения не меньше лимита
+   */
+  {
     name: 'min-length',
     selector: '[data-min-length]',
     templateId: 'min_length_error_span',
     defaultMessage: 'Минимальная длина: __COUNT__ символов',
-    type: 'min'
-  }),
+    messageLevel: 4,
 
-  // Regex rules (DRY)
-  createRegexRule({
+    validate: function ($field, validator) {
+      const minLength = parseInt($field.data('min-length'), 10);
+
+      if (isNaN(minLength)) {
+        return true;
+      }
+
+      const value = validator.getFieldValue();
+      const values = normalizeValue(value);
+      const totalLength = values.reduce(function (sum, v) {
+        return sum + (v?.length || 0);
+      }, 0);
+
+      if (totalLength < minLength) {
+        return {
+          valid: false,
+          params: { count: minLength, current: totalLength }
+        };
+      }
+
+      return true;
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // Правило 4: Format (Regex)
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Формат" (проверка по регулярному выражению)
+   * Pattern берётся из data-format атрибута
+   */
+  {
     name: 'format',
     selector: '[data-format]',
     templateId: 'format-error-span',
     defaultMessage: 'Неверный формат поля',
-    patternSource: 'data'
-  }),
+    messageLevel: 4,
 
-  createRegexRule({
+    validate: function ($field, validator) {
+      const pattern = $field.data('format');
+
+      // Если атрибут не задан — пропускаем правило
+      if (!pattern) {
+        return true;
+      }
+
+      const value = validator.getFieldValue();
+      const values = normalizeValue(value);
+
+      try {
+        const regex = new RegExp(pattern);
+        const isValid = values.every(function (v) {
+          // Пустые значения пропускаем (они обрабатываются required)
+          return !v || regex.test(v);
+        });
+
+        if (!isValid) {
+          return { valid: false, params: { format: pattern } };
+        }
+      } catch (e) {
+        // Неверный regex — логируем и пропускаем правило
+        // console.warn('[validation-rules] Invalid regex:', pattern);
+        return true;
+      }
+
+      return true;
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // Правило 5: Pattern (HTML5)
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Pattern" (HTML5 атрибут pattern)
+   * Автоматически оборачивает pattern в ^...$ для полного совпадения
+   */
+  {
     name: 'pattern',
     selector: '[pattern]',
     templateId: 'pattern-error-span',
     defaultMessage: 'Поле не соответствует шаблону',
-    patternSource: 'attr',
-    regex: null // Использует ^pattern$
-  }),
+    messageLevel: 4,
 
-  // Email — специализированный regex (не DRY, т.к. фиксированный паттерн)
+    validate: function ($field, validator) {
+      const pattern = $field.attr('pattern');
+
+      if (!pattern) {
+        return true;
+      }
+
+      const value = validator.getFieldValue();
+      const values = normalizeValue(value);
+
+      try {
+        // HTML5 pattern — неявное ^...$, добавляем явно
+        const regex = new RegExp('^' + pattern + '$');
+        const isValid = values.every(function (v) {
+          return !v || regex.test(v);
+        });
+
+        if (!isValid) {
+          return { valid: false, params: { pattern: pattern } };
+        }
+      } catch (e) {
+        return true;
+      }
+
+      return true;
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // Правило 6: Email
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Email" (специализированная проверка формата email)
+   * Применяется автоматически к input[type="email"]
+   */
   {
     name: 'email',
     selector: 'input[type="email"]',
@@ -191,42 +318,94 @@ export const validationRules = [
     defaultMessage: 'Введите корректный email',
     messageLevel: 4,
 
-    validate($field, validator) {
-      const values = normalizeValue(validator.getFieldValue());
+    validate: function ($field, validator) {
+      const value = validator.getFieldValue();
+      const values = normalizeValue(value);
+
+      // Упрощённый email regex (соответствует HTML5 spec)
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const isValid = values.every(v => !v || emailRegex.test(v));
-      return isValid ? true : { valid: false, params: {} };
+
+      const isValid = values.every(function (v) {
+        // Пустые значения пропускаем
+        return !v || emailRegex.test(v);
+      });
+
+      if (!isValid) {
+        return { valid: false, params: {} };
+      }
+
+      return true;
     }
   },
 
-  // AJAX — заглушка (YAGNI: не реализовано до v1.3)
+  // --------------------------------------------------------------------------
+  // Правило 7: AJAX (заглушка, v1.3+)
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "AJAX" (серверная валидация)
+   * ⚠️ Заглушка: пока не реализована асинхронная поддержка
+   * Реализация запланирована в v1.3
+   */
   {
     name: 'ajax',
     selector: '[data-ajax-validate]',
     templateId: 'ajax-error-span',
     defaultMessage: 'Проверка не пройдена',
     messageLevel: 4,
-    validate: () => true // Заглушка
+
+    validate: function ($field, validator) {
+      const url = $field.data('ajax-validate');
+
+      if (!url) {
+        return true;
+      }
+
+      // ⚠️ AJAX требует асинхронной валидации — пока заглушка
+      // Реализация: возвращать Promise и обрабатывать в FieldValidator
+      return true;
+    }
   },
 
-  // Custom — для динамических правил
+  // --------------------------------------------------------------------------
+  // Правило 8: Custom (динамические правила)
+  // --------------------------------------------------------------------------
+  /**
+   * Правило "Custom" (пользовательская валидация)
+   * Позволяет задать функцию валидации через data-validate-custom
+   */
   {
     name: 'custom',
     selector: '[data-validate-custom]',
     templateId: 'custom-error-span',
-    defaultMessage: 'Пользовательская ошибка',
+    defaultMessage: 'Пользовательская ошибка валидации',
     messageLevel: 4,
 
-    validate($field, validator) {
-      const fn = $field.data('validate-custom');
-      if (typeof fn !== 'function') return true;
+    validate: function ($field, validator) {
+      const customFn = $field.data('validate-custom');
+
+      // Если функция не задана или не функция — пропускаем
+      if (!customFn || typeof customFn !== 'function') {
+        return true;
+      }
 
       const value = validator.getFieldValue();
-      const result = fn(value, $field);
+      const result = customFn(value, $field);
 
-      return (result === true)
-        ? true
-        : { valid: false, params: result?.params || {} };
+      // Обработка результата: true = валидно, false/объект = ошибка
+      if (result === true) {
+        return true;
+      }
+
+      if (result === false) {
+        return { valid: false, params: {} };
+      }
+
+      if (result && typeof result === 'object' && result.valid === false) {
+        return { valid: false, params: result.params || {} };
+      }
+
+      // Fallback: считаем валидным
+      return true;
     }
   }
 ];
@@ -234,5 +413,13 @@ export const validationRules = [
 // ============================================================================
 // EXPORTS
 // ============================================================================
+
+/**
+ * Экспорт по умолчанию — массив правил
+ */
 export default validationRules;
+
+/**
+ * Экспорт хелперов для тестов и кастомных правил
+ */
 export { isEmpty, formatMessage, normalizeValue };
