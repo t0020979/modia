@@ -24,7 +24,7 @@
 | FieldErrorRenderer | Рендеринг и очистка ошибок (5 уровней иерархии) | ✅ v1.2 |
 | validationRules | Конфигурация правил валидации | ✅ v1.2 |
 | Logger Service | Единый сервис логирования | ✅ v1.2 |
-| DebugComponent | Управление режимами отладки | ✅ v1.2 |
+| DebugComponent | Управление режимами отладки | ✅ v1.3+ |
 | jQuery Data API | Хранение ссылок на компоненты через `$.data()` | ✅ v1.2 |
 | Custom Events | События `modia:initialized`, `modia:scanned`, `modia:component-created` | ✅ v1.2 |
 
@@ -73,9 +73,9 @@
 |------|----------|--------|
 | Core Layer | BaseComponent, Container, ComponentScanner | ✅ v1.2 |
 | Service Layer | FieldValidator, FieldErrorRenderer, Logger | ✅ v1.2 |
-| Component Layer | ValidationComponent, DebugComponent | ✅ v1.2 |
+| Component Layer | ValidationComponent, DebugComponent | ✅ v1.2, v1.3 |
 | Configuration Layer | validationRules.js | ✅ v1.2 |
-| Integration Layer | Turbolinks, UJS, Rails i18n | ✅ v1.2 |
+| Integration Layer | Turbolinks, UJS, Rails i18n | ✅ v1.3+ |
 
 ## 🔄 Версионная стратегия
 

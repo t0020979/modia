@@ -11,7 +11,7 @@
 - Регистрацию компонентов в `ComponentScanner`
 - Экспорт публичного API через `window.Modia`
 - Автоматическую инициализацию при загрузке страницы
-- Интеграцию с Logger и DebugComponent
+- Интеграцию с Logger
 
 ## 🔌 Подключение
 
@@ -47,9 +47,6 @@ console.log(Modia.version); // '1.2.0'
 | `warn(message, context)` | Method | Лог уровня warn |
 | `error(message, context)` | Method | Лог уровня error |
 | `success(message, context)` | Method | Лог уровня success |
-| `debug.isEnabled()` | Method | Проверка активности debug |
-| `debug.getMode()` | Method | Получение текущего режима |
-| `debug.getComponentsRegistry()` | Method | Реестр компонентов |
 
 ---
 
@@ -249,7 +246,6 @@ Modia.error('Ошибка валидации', 'ValidationComponent');
 |------|----------|
 | [core.md](./core.md) | Core — базовые классы |
 | [logger.md](./logger.md) | Logger — сервис логирования |
-| [debug.md](./debug.md) | DebugComponent — режимы отладки |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | Архитектурные принципы |
 
 ---

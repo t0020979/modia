@@ -4,7 +4,7 @@
 
 | Каталог | Назначение |
 |---------|------------|
-| component/ | Тесты компонентов (Validation, Debug) |
+| component/ | Тесты компонентов (Validation) |
 | service/ | Тесты сервисов (Logger, Debounce) |
 | configurations/ | Тесты конфигураций |
 | integration/ | Интеграционные тесты |

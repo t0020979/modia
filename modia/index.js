@@ -10,16 +10,12 @@
 import { ComponentScanner, container } from './core.js';
 import { logger } from './services/logger.js';
 import { ValidationComponent } from './components/validation.js';
-import { DebugComponent } from './components/debug.js';
 
 // ============================================================================
 // Регистрация компонентов
 // ============================================================================
 
 ComponentScanner.register(ValidationComponent);
-// ComponentScanner.register(DebugComponent);
-// ⚠️ DebugComponent НЕ регистрируется через ComponentScanner
-// Он инициализируется автоматически при импорте
 
 // ============================================================================
 // Публичный API
@@ -53,14 +49,6 @@ window.Modia = {
     error(message, context) { logger.error(message, context); },
     success(message, context) { logger.success(message, context); },
 
-    /**
-     * Debug API
-     */
-    debug: {
-        isEnabled() { return DebugComponent.isEnabled(); },
-        getMode() { return DebugComponent.getMode(); },
-        getComponentsRegistry() { return ComponentScanner.instances || []; }
-    }
 };
 
 // ============================================================================

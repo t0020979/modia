@@ -139,7 +139,6 @@ class MyComponent {
 
 | Файл | Описание |
 |------|----------|
-| [debug.md](./debug.md) | DebugComponent — управление режимами отладки |
 | [index.md](./index.md) | Index — точка входа фреймворка |
 | [core.md](./core.md) | Core — базовые классы |
 

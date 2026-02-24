@@ -210,7 +210,6 @@ $(document).on('modia:component-created', (e, data) => {
 |------|----------|
 | [index.md](./index.md) | Index — точка входа фреймворка |
 | [logger.md](./logger.md) | Logger — сервис логирования |
-| [debug.md](./debug.md) | DebugComponent — режимы отладки |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | Архитектурные принципы |
 
 ---

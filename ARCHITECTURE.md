@@ -25,7 +25,7 @@ modia/
 ├── index.js             ← Точка входа: регистрация + экспорт Modia.scan()
 ├── components/          ← Компоненты (поведение контейнера)
 │   ├── validation.js    ← ValidationComponent (v1.2)
-│   └── debug.js         ← DebugComponent (v1.2)
+│   └── debug.js         ← DebugComponent (v1.3)
 │   └── debug-panel.js   ← DebugPanel Component (v1.3+) ⏳
 ├── services/            ← Сервисы (логика без состояния)
 │   ├── logger.js        ← Logger Service (v1.2)

@@ -50,8 +50,8 @@
 | **ComponentScanner** | Авто-инициализация по `data-component` | ✅ Реализовано |
 | **Container** | Глобальное состояние | ✅ Реализовано |
 | **Logger Service** | Логирование в консоль (debug-режимы) | ✅ Реализовано |
-| **DebugComponent** | Управление режимами отладки | ✅ Реализовано |
-| **validation-rules.js** | Конфигурация правил валидации (8 правил) | ✅ Реализовано |
+| **DebugComponent** | Управление режимами отладки | Запланировано |
+| **validation-rules.js** | Конфигурация правил валидации (1 правило + 7 в проекте) | ✅ Реализовано |
 | **jQuery Data API** | Хранение ссылок на компоненты | ✅ Реализовано |
 | **Custom Events** | События `modia:initialized`, `modia:scanned` | ✅ Реализовано |
 
@@ -185,7 +185,7 @@ open http://127.0.0.1:5501/examples/component/validation/test-01-required.html?m
 
 | Версия | Дата | Ключевые изменения |
 |--------|------|-------------------|
-| **v1.2** | 2026-02-20 | ValidationComponent, FieldValidator, FieldErrorRenderer, 8 правил валидации, 5 уровней иерархии сообщений, Logger Service, DebugComponent |
+| **v1.2** | 2026-02-20 | ValidationComponent, FieldValidator, FieldErrorRenderer, 8 правил валидации, 5 уровней иерархии сообщений, Logger Service |
 | v1.1 | 2026-02-10 | Базовое ядро: BaseComponent, Container, ComponentScanner |
 | v1.0 | 2026-01-15 | Начальная версия |
 

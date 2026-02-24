@@ -35,7 +35,7 @@
 | FieldErrorRenderer | Рендеринг и очистка ошибок с поддержкой 5 уровней иерархии |
 | validationRules | Конфигурация правил валидации |
 | Logger Service | Единый сервис логирования (режимы: log, debug, diag, panel) |
-| DebugComponent | Управление режимами отладки |
+| DebugComponent | Управление режимами отладки (1.3) |
 | jQuery Data API | Хранение ссылок на компоненты через `$.data('modia-component')` |
 | Custom Events | События `modia:initialized`, `modia:scanned`, `modia:component-created` |
 
