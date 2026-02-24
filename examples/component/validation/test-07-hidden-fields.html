@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест ValidationComponent (Скрытые поля)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS (скрывает шаблоны ошибок) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .test-form {
+      max-width: 500px;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .form-status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .form-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .form-status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .console-log-container {
+      position: relative;
+    }
+
+    .btn-copy-log {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .character-selector {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .character-selector button {
+      flex: 1;
+    }
+
+    .character-selector button.active {
+      background: #007bff;
+      color: white;
+      border-color: #007bff;
+    }
+
+    .hidden-field-info {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 12px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест ValidationComponent</h1>
+    <p class="text-muted">Скрытые поля — работа с hidden input + внешний экран ошибки</p>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 1: Скрытое поле + внешний экран ошибки -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Скрытое поле + внешний экран ошибки</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Скрытое поле (<code>type="hidden"</code>) валидируется</li>
+          <li>Ошибка отображается на видимом элементе (<code>data-input-error-screen</code>)</li>
+          <li>Выбор значения через UI → ошибка исчезает</li>
+          <li>Очистка значения → ошибка появляется снова</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code> → ошибка на видимом элементе<br>
+        2. Выберите персонажа → ошибка исчезнет<br>
+        3. Нажмите <code>📝 Валидировать</code> → успех<br>
+        4. Нажмите <code>🗑️ Сбросить выбор</code> → ошибка появится снова
+      </div>
+
+      <form id="form-hidden-1" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label>Выберите персонажа *</label>
+          <div id="character-selector" class="character-selector">
+            <button type="button" class="btn btn-outline-primary" data-select="1">
+              🐻 Чебурашка
+            </button>
+            <button type="button" class="btn btn-outline-primary" data-select="2">
+              🐊 Крокодил Гена
+            </button>
+            <button type="button" class="btn btn-outline-primary" data-select="3">
+              👵 Шапокляк
+            </button>
+          </div>
+
+          <!-- Скрытое поле с внешним экраном ошибки -->
+          <input type="hidden" id="character_id" name="character_id" required
+            data-input-error-screen="#character-selector">
+
+          <small class="text-muted">Скрытое поле, ошибка на #character-selector</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Выберите персонажа</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="submit" class="btn btn-primary btn-sm">📝 Валидировать</button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-reset-character">
+            🗑️ Сбросить выбор
+          </button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-check-character-value">
+            🔍 Проверить значение
+          </button>
+        </div>
+      </form>
+
+      <div id="form-hidden-1-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="character-value-output" class="hidden-field-info">Значение: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-1">
+          ▶️ Авто-тест секции 1
+        </button>
+      </div>
+
+      <div id="test-result-1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 2: Видимый элемент + внешний источник значения -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Видимый элемент + внешний источник значения</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Видимый элемент (<code>div</code>) отображает ошибку</li>
+          <li>Значение берётся из скрытого поля (<code>data-input-value-source</code>)</li>
+          <li>Изменение скрытого поля → валидация работает</li>
+          <li>Оба способа работают независимо</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code> → ошибка на видимом элементе<br>
+        2. Введите значение в скрытое поле → нажмите <code>📝 Валидировать</code> → успех<br>
+        3. Проверьте значение через <code>🔍 Проверить значение</code>
+      </div>
+
+      <form id="form-hidden-2" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label>Код подтверждения *</label>
+          <!-- Видимый элемент с внешним источником значения -->
+          <div id="code-display" data-input-value-source="#code-hidden" class="border p-2 rounded"
+            style="min-height: 38px;">
+            (значение из скрытого поля)
+          </div>
+
+          <!-- Скрытое поле — источник значения -->
+          <input type="hidden" id="code-hidden" name="confirmation_code" required>
+
+          <small class="text-muted">Видимый div, значение из #code-hidden</small>
+        </div>
+
+        <div class="form-group mt-2">
+          <input type="text" id="code-input-temp" class="form-control" placeholder="Введите код для скрытого поля">
+          <button type="button" class="btn btn-secondary btn-sm mt-2" id="btn-set-code">
+            📝 Установить код
+          </button>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Введите код подтверждения</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="submit" class="btn btn-primary btn-sm">📝 Валидировать</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-check-code-value">
+            🔍 Проверить значение
+          </button>
+        </div>
+      </form>
+
+      <div id="form-hidden-2-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="code-value-output" class="hidden-field-info">Значение: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-2">
+          ▶️ Авто-тест секции 2
+        </button>
+      </div>
+
+      <div id="test-result-2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 3: Комбинация способов -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 3: Комбинация способов (оба атрибута)</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Одно поле может иметь оба атрибута</li>
+          <li><code>data-input-error-screen</code> имеет приоритет для ошибки</li>
+          <li><code>data-input-value-source</code> имеет приоритет для значения</li>
+          <li>Валидация работает корректно</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code> → ошибка на экране ошибки<br>
+        2. Установите значение → ошибка исчезнет<br>
+        3. Проверьте значение через <code>🔍 Проверить значение</code>
+      </div>
+
+      <form id="form-hidden-3" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label>Секретное значение *</label>
+
+          <!-- Экран ошибки -->
+          <div id="secret-error-screen" class="border p-2 rounded mb-2">
+            (ошибка отображается здесь)
+          </div>
+
+          <!-- Видимый элемент -->
+          <div id="secret-display" data-input-value-source="#secret-hidden"
+            data-input-error-screen="#secret-error-screen" class="border p-2 rounded" style="min-height: 38px;">
+            (значение из скрытого поля)
+          </div>
+
+          <!-- Скрытое поле -->
+          <input type="hidden" id="secret-hidden" name="secret_value" required>
+
+          <small class="text-muted">Оба атрибута на одном элементе</small>
+        </div>
+
+        <div class="form-group mt-2">
+          <input type="text" id="secret-input-temp" class="form-control"
+            placeholder="Введите значение для скрытого поля">
+          <button type="button" class="btn btn-secondary btn-sm mt-2" id="btn-set-secret">
+            📝 Установить значение
+          </button>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Требуется секретное значение</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="submit" class="btn btn-primary btn-sm">📝 Валидировать</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-check-secret-value">
+            🔍 Проверить значение
+          </button>
+        </div>
+      </form>
+
+      <div id="form-hidden-3-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="secret-value-output" class="hidden-field-info">Значение: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-3">
+          ▶️ Авто-тест секции 3
+        </button>
+      </div>
+
+      <div id="test-result-3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- КОНСОЛЬ ЛОГГЕРА -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📋 Консоль логгера</h3>
+
+      <div class="console-log-container">
+        <button class="btn btn-sm btn-outline-secondary btn-copy-log" id="btn-copy-log">
+          📋 Копировать
+        </button>
+        <div class="event-log" id="console-log" style="max-height: 300px; overflow-y: auto;">
+          <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-2">
+        <button class="btn btn-outline-secondary" id="btn-clear-log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ГЛОБАЛЬНЫЕ КНОПКИ -->
+    <!-- ============================================================ -->
+    <div class="test-buttons mt-4">
+      <button class="btn btn-success btn-lg" id="btn-auto-test-all">
+        ▶️ Запустить авто-тест всех секций
+      </button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-06-dynamic-fields.html" class="btn btn-outline-secondary">
+        ← Предыдущий тест: Динамические поля
+      </a>
+      <a href="test-08-hooks-events.html" class="btn btn-outline-primary">
+        → Следующий тест: События-хуки
+      </a>
+    </div>
+  </div>
+
+  <!-- ✅ Modia Index (3 уровня вверх!) -->
+  <script type="module" src="../../../modia/index.js"></script>
+
+  <!-- ✅ Тестовый скрипт -->
+  <script type="module">
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+
+    let testRunning = false;
+
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Hidden Fields Test] ${message}`);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setFormStatus(formId, status, message) {
+      const $status = $(`#${formId}-status`);
+      $status.removeClass('success error pending').addClass(status);
+      $status.text(`Статус: ${message}`);
+    }
+
+    // ============================================================
+    // КОПИРОВАНИЕ ЛОГА В БУФЕР ОБМЕНА
+    // ============================================================
+
+    function copyLogToClipboard() {
+      const $log = $('#console-log');
+      const lines = [];
+      $log.find('div').each(function () {
+        lines.push($(this).text().trim());
+      });
+      const text = lines.join('\n');
+
+      if (!text) {
+        log('❌ Нечего копировать — лог пуст', 'error');
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          log('✅ Лог скопирован в буфер обмена', 'success');
+          const $btn = $('#btn-copy-log');
+          const originalText = $btn.text();
+          $btn.text('✅ Скопировано!').prop('disabled', true);
+          setTimeout(() => {
+            $btn.text(originalText).prop('disabled', false);
+          }, 2000);
+        }).catch(err => {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        });
+      } else {
+        const $textarea = $('<textarea>').val(text).css({
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px'
+        }).appendTo('body');
+
+        $textarea[0].select();
+        try {
+          document.execCommand('copy');
+          log('✅ Лог скопирован (fallback)', 'success');
+        } catch (err) {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        }
+        $textarea.remove();
+      }
+
+      return true;
+    }
+
+    // ============================================================
+    // СЕКЦИЯ 1: Скрытое поле + внешний экран ошибки
+    // ============================================================
+
+    $(document).ready(function () {
+      log('DOM готов, ожидание инициализации Modia...', 'info');
+
+      setTimeout(function () {
+        log('Modia инициализирован', 'success');
+
+        const $form1 = $('#form-hidden-1');
+        const comp1 = $form1.data('modia-component');
+
+        if (comp1) {
+          log(`✅ Компонент найден: ${comp1.constructor.name}`, 'success');
+        }
+
+        // Выбор персонажа
+        $('#character-selector [data-select]').on('click', function () {
+          const value = $(this).data('select');
+          $('#character_id').val(value);
+
+          // Обновляем UI
+          $('#character-selector button').removeClass('active');
+          $(this).addClass('active');
+
+          log(`✅ Выбран персонаж: ${value}`, 'success');
+
+          // Авто-валидация после выбора
+          if (comp1) {
+            comp1.validate();
+          }
+        });
+
+        // Сброс выбора
+        $('#btn-reset-character').on('click', function () {
+          $('#character_id').val('');
+          $('#character-selector button').removeClass('active');
+          if (comp1) {
+            comp1.clearErrors();
+            comp1.validate();
+          }
+          log('🗑️ Выбор сброшен', 'info');
+          setFormStatus('form-hidden-1', 'pending', 'Выбор сброшен');
+        });
+
+        // Проверка значения
+        $('#btn-check-character-value').on('click', function () {
+          const value = $('#character_id').val();
+          $('#character-value-output').text(`Значение: ${value || '(пусто)'}`);
+          log(`🔍 Значение скрытого поля: ${value || '(пусто)'}`, 'info');
+        });
+
+        // Обработчики валидации
+        $form1.on('validation:invalid', function (e, data) {
+          log(`❌ Ошибка валидации: ${data.errors.length} ошибок`, 'error');
+          setFormStatus('form-hidden-1', 'error', `Ошибок: ${data.errors.length}`);
+        });
+
+        $form1.on('validation:valid', function () {
+          log('✅ Форма валидна', 'success');
+          setFormStatus('form-hidden-1', 'success', 'Форма валидна!');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 2: Видимый элемент + внешний источник значения
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form2 = $('#form-hidden-2');
+        const comp2 = $form2.data('modia-component');
+
+        // Установить код
+        $('#btn-set-code').on('click', function () {
+          const code = $('#code-input-temp').val();
+          $('#code-hidden').val(code);
+          $('#code-display').text(code || '(значение из скрытого поля)');
+          log(`📝 Код установлен: ${code || '(пусто)'}`, 'info');
+
+          if (comp2) {
+            comp2.validate();
+          }
+        });
+
+        // Проверка значения
+        $('#btn-check-code-value').on('click', function () {
+          const value = $('#code-hidden').val();
+          $('#code-value-output').text(`Значение: ${value || '(пусто)'}`);
+          log(`🔍 Значение скрытого поля: ${value || '(пусто)'}`, 'info');
+        });
+
+        // Обработчики валидации
+        $form2.on('validation:invalid', function (e, data) {
+          setFormStatus('form-hidden-2', 'error', `Ошибок: ${data.errors.length}`);
+        });
+
+        $form2.on('validation:valid', function () {
+          setFormStatus('form-hidden-2', 'success', 'Форма валидна!');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 3: Комбинация способов
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form3 = $('#form-hidden-3');
+        const comp3 = $form3.data('modia-component');
+
+        // Установить значение
+        $('#btn-set-secret').on('click', function () {
+          const value = $('#secret-input-temp').val();
+          $('#secret-hidden').val(value);
+          $('#secret-display').text(value || '(значение из скрытого поля)');
+          log(`📝 Значение установлено: ${value || '(пусто)'}`, 'info');
+
+          if (comp3) {
+            comp3.validate();
+          }
+        });
+
+        // Проверка значения
+        $('#btn-check-secret-value').on('click', function () {
+          const value = $('#secret-hidden').val();
+          $('#secret-value-output').text(`Значение: ${value || '(пусто)'}`);
+          log(`🔍 Значение скрытого поля: ${value || '(пусто)'}`, 'info');
+        });
+
+        // Обработчики валидации
+        $form3.on('validation:invalid', function (e, data) {
+          setFormStatus('form-hidden-3', 'error', `Ошибок: ${data.errors.length}`);
+        });
+
+        $form3.on('validation:valid', function () {
+          setFormStatus('form-hidden-3', 'success', 'Форма валидна!');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 1
+    // ============================================================
+
+    $('#btn-auto-test-section-1').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 1: Начало ===', 'info');
+
+        const comp1 = $('#form-hidden-1').data('modia-component');
+
+        // Шаг 1: Пустое скрытое поле → ошибка
+        log('Шаг 1: Валидация пустого скрытого поля...', 'info');
+        $('#character_id').val('');
+        $('#character-selector button').removeClass('active');
+        if (comp1) comp1.clearErrors();
+        await sleep(300);
+
+        const isValid1 = comp1.validate();
+        if (!isValid1) {
+          log('✅ Шаг 1: Ошибка на скрытом поле', 'success');
+        } else {
+          throw new Error('Пустое скрытое поле должно быть невалидно');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Выбрать значение → успех
+        log('Шаг 2: Выбор персонажа...', 'info');
+        $('#character-selector [data-select="1"]').click();
+        await sleep(300);
+
+        const isValid2 = comp1.validate();
+        if (isValid2) {
+          log('✅ Шаг 2: Выбранное значение валидно', 'success');
+        } else {
+          throw new Error('Выбранное значение должно быть валидно');
+        }
+
+        await sleep(500);
+
+        // Шаг 3: Сброс → ошибка
+        log('Шаг 3: Сброс выбора...', 'info');
+        $('#btn-reset-character').click();
+        await sleep(300);
+
+        const isValid3 = comp1.validate();
+        if (!isValid3) {
+          log('✅ Шаг 3: После сброса ошибка возвращается', 'success');
+        } else {
+          throw new Error('После сброса должна быть ошибка');
+        }
+
+        log('=== Авто-тест секции 1: Успешно ===', 'success');
+        $('#test-result-1').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-1').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 1');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 2
+    // ============================================================
+
+    $('#btn-auto-test-section-2').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 2: Начало ===', 'info');
+
+        const comp2 = $('#form-hidden-2').data('modia-component');
+
+        // Шаг 1: Пустое значение → ошибка
+        log('Шаг 1: Валидация пустого значения...', 'info');
+        $('#code-hidden').val('');
+        $('#code-display').text('(значение из скрытого поля)');
+        if (comp2) comp2.clearErrors();
+        await sleep(300);
+
+        const isValid1 = comp2.validate();
+        if (!isValid1) {
+          log('✅ Шаг 1: Пустое значение не валидно', 'success');
+        } else {
+          throw new Error('Пустое значение должно быть невалидно');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Установить значение → успех
+        log('Шаг 2: Установка значения...', 'info');
+        $('#code-input-temp').val('ABC123');
+        $('#btn-set-code').click();
+        await sleep(300);
+
+        const isValid2 = comp2.validate();
+        if (isValid2) {
+          log('✅ Шаг 2: Установленное значение валидно', 'success');
+        } else {
+          throw new Error('Установленное значение должно быть валидно');
+        }
+
+        log('=== Авто-тест секции 2: Успешно ===', 'success');
+        $('#test-result-2').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-2').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 2');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 3
+    // ============================================================
+
+    $('#btn-auto-test-section-3').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 3: Начало ===', 'info');
+
+        const comp3 = $('#form-hidden-3').data('modia-component');
+
+        // Шаг 1: Пустое значение → ошибка
+        log('Шаг 1: Валидация пустого значения...', 'info');
+        $('#secret-hidden').val('');
+        $('#secret-display').text('(значение из скрытого поля)');
+        if (comp3) comp3.clearErrors();
+        await sleep(300);
+
+        const isValid1 = comp3.validate();
+        if (!isValid1) {
+          log('✅ Шаг 1: Пустое значение не валидно', 'success');
+        } else {
+          throw new Error('Пустое значение должно быть невалидно');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Установить значение → успех
+        log('Шаг 2: Установка значения...', 'info');
+        $('#secret-input-temp').val('SECRET_VALUE');
+        $('#btn-set-secret').click();
+        await sleep(300);
+
+        const isValid2 = comp3.validate();
+        if (isValid2) {
+          log('✅ Шаг 2: Установленное значение валидно', 'success');
+        } else {
+          throw new Error('Установленное значение должно быть валидно');
+        }
+
+        log('=== Авто-тест секции 3: Успешно ===', 'success');
+        $('#test-result-3').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-3').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 3');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ АВТО-ТЕСТ
+    // ============================================================
+
+    $('#btn-auto-test-all').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Начало ===', 'info');
+
+      await $('#btn-auto-test-section-1').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-2').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-3').click();
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Завершён ===', 'success');
+
+      $btn.prop('disabled', false).text('▶️ Запустить авто-тест всех секций');
+      testRunning = false;
+    });
+
+    // ============================================================
+    // ОБРАБОТЧИКИ ЛОГА
+    // ============================================================
+
+    $('#btn-copy-log').on('click', function (e) {
+      e.preventDefault();
+      copyLogToClipboard();
+    });
+
+    $('#btn-clear-log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен</small></div>');
+      log('Лог очищен пользователем', 'info');
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК
+    // ============================================================
+
+    window.addEventListener('error', function (e) {
+      log(`❌ Глобальная ошибка: ${e.message} в ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function (e) {
+      log(`❌ Необработанная Promise-ошибка: ${e.reason}`, 'error');
+    });
+  </script>
+</body>
+
+</html>

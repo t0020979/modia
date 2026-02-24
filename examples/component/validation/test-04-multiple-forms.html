@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест ValidationComponent (Несколько форм)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS (скрывает шаблоны ошибок) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .test-form {
+      max-width: 500px;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .form-status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .form-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .form-status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .console-log-container {
+      position: relative;
+    }
+
+    .btn-copy-log {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .form-comparison {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .form-comparison>div {
+      flex: 1;
+      min-width: 250px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест ValidationComponent</h1>
+    <p class="text-muted">Несколько форм на странице — независимая валидация</p>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 1: Две формы на одной странице -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Две независимые формы</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Каждая форма имеет свой экземпляр ValidationComponent</li>
+          <li>Ошибки в одной форме не влияют на другую</li>
+          <li>Отправка одной формы не затрагивает другую</li>
+          <li>Компоненты не конфликтуют между собой</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Оставьте поля в Форме 1 пустыми → нажмите «Отправить» → ошибка только в Форме 1<br>
+        2. Заполните Форму 2 → нажмите «Отправить» → успех только в Форме 2<br>
+        3. Проверьте, что статусы форм обновляются независимо
+      </div>
+
+      <div class="form-comparison">
+        <!-- Форма 1 -->
+        <div>
+          <h5>🔵 Форма 1: Регистрация</h5>
+          <form id="form-registration" data-component="validation" class="test-form">
+            <div class="form-group">
+              <label for="reg-email">Email *</label>
+              <input type="email" id="reg-email" name="email" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="reg-password">Пароль *</label>
+              <input type="password" id="reg-password" name="password" class="form-control" required minlength="6">
+            </div>
+            <div class="error-templates">
+              <span class="text-danger" data-rule="required">Обязательное поле</span>
+              <span class="text-danger" data-rule="minlength">Минимум 6 символов</span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">📝 Зарегистрировать</button>
+          </form>
+          <div id="form-registration-status" class="form-status pending">Статус: Ожидание...</div>
+        </div>
+
+        <!-- Форма 2 -->
+        <div>
+          <h5>🟢 Форма 2: Вход</h5>
+          <form id="form-login" data-component="validation" class="test-form">
+            <div class="form-group">
+              <label for="login-email">Email *</label>
+              <input type="email" id="login-email" name="email" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="login-password">Пароль *</label>
+              <input type="password" id="login-password" name="password" class="form-control" required>
+            </div>
+            <div class="error-templates">
+              <span class="text-danger" data-rule="required">Обязательное поле</span>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm">🔐 Войти</button>
+          </form>
+          <div id="form-login-status" class="form-status pending">Статус: Ожидание...</div>
+        </div>
+      </div>
+
+      <!-- Кнопки авто-теста -->
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-1">
+          ▶️ Авто-тест секции 1
+        </button>
+      </div>
+
+      <!-- Результат теста -->
+      <div id="test-result-1" class="test-result pending">
+        Ожидание...
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 2: Форма + контейнер (div) на одной странице -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Форма + контейнер (div) вместе</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Компонент работает на form и на div одновременно</li>
+          <li>Валидация в div не отправляет форму</li>
+          <li>Ошибки в div не влияют на форму</li>
+          <li>Оба экземпляра компонента независимы</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Заполните форму → нажмите «Отправить» → валидация + отправка<br>
+        2. Заполните контейнер → нажмите «Сохранить» → только валидация<br>
+        3. Проверьте независимость статусов
+      </div>
+
+      <div class="form-comparison">
+        <!-- Форма -->
+        <div>
+          <h5>🔵 Форма (submit)</h5>
+          <form id="form-regular" data-component="validation" class="test-form">
+            <div class="form-group">
+              <label for="form-name">Имя *</label>
+              <input type="text" id="form-name" name="name" class="form-control" required>
+            </div>
+            <div class="error-templates">
+              <span class="text-danger" data-rule="required">Обязательное поле</span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">📝 Отправить</button>
+          </form>
+          <div id="form-regular-status" class="form-status pending">Статус: Ожидание...</div>
+        </div>
+
+        <!-- Контейнер (не форма) -->
+        <div>
+          <h5>🟢 Контейнер (div + button)</h5>
+          <div id="container-modal" data-component="validation" class="test-form">
+            <div class="form-group">
+              <label for="modal-name">Имя *</label>
+              <input type="text" id="modal-name" name="name" class="form-control" required>
+            </div>
+            <div class="error-templates">
+              <span class="text-danger" data-rule="required">Обязательное поле</span>
+            </div>
+            <button type="button" class="btn btn-success btn-sm" data-validate>💾 Сохранить</button>
+          </div>
+          <div id="container-modal-status" class="form-status pending">Статус: Ожидание...</div>
+        </div>
+      </div>
+
+      <!-- Кнопки авто-теста -->
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-2">
+          ▶️ Авто-тест секции 2
+        </button>
+      </div>
+
+      <!-- Результат теста -->
+      <div id="test-result-2" class="test-result pending">
+        Ожидание...
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 3: Проверка изоляции экземпляров -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 3: Изоляция экземпляров компонентов</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Каждая форма имеет свой экземпляр компонента</li>
+          <li><code>.data('modia-component')</code> возвращает правильный экземпляр</li>
+          <li>Методы одного компонента не влияют на другой</li>
+          <li>Конфигурации независимы</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>🔍 Проверить экземпляры</code> → покажет количество компонентов<br>
+        2. Нажмите <code>🔍 Проверить конфиги</code> → покажет конфиги каждого<br>
+        3. Измените конфиг одной формы → проверьте, что другая не изменилась
+      </div>
+
+      <div class="form-comparison">
+        <!-- Форма A -->
+        <div>
+          <h5>🔵 Форма A (live=false)</h5>
+          <form id="form-a" data-component="validation" data-validation-live="false" class="test-form">
+            <div class="form-group">
+              <label for="field-a">Поле A *</label>
+              <input type="text" id="field-a" name="field_a" class="form-control" required>
+            </div>
+            <div class="error-templates">
+              <span class="text-danger" data-rule="required">Обязательное</span>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">📝 Проверить</button>
+          </form>
+        </div>
+
+        <!-- Форма B -->
+        <div>
+          <h5>🟢 Форма B (live=true)</h5>
+          <form id="form-b" data-component="validation" data-validation-live="true"
+            data-validation-debounce-delay="500" class="test-form">
+            <div class="form-group">
+              <label for="field-b">Поле B *</label>
+              <input type="text" id="field-b" name="field_b" class="form-control" required>
+            </div>
+            <div class="error-templates">
+              <span class="text-danger" data-rule="required">Обязательное</span>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm">📝 Проверить</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-info" id="btn-check-instances">
+          🔍 Проверить экземпляры
+        </button>
+        <button class="btn btn-info" id="btn-check-configs">
+          🔍 Проверить конфиги
+        </button>
+        <button class="btn btn-success" id="btn-auto-test-section-3">
+          ▶️ Авто-тест секции 3
+        </button>
+      </div>
+
+      <div id="instances-info" class="registry-display">
+        Информация об экземплярах: (ожидание)
+      </div>
+
+      <!-- Результат теста -->
+      <div id="test-result-3" class="test-result pending">
+        Ожидание...
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- КОНСОЛЬ ЛОГГЕРА -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📋 Консоль логгера</h3>
+
+      <div class="console-log-container">
+        <button class="btn btn-sm btn-outline-secondary btn-copy-log" id="btn-copy-log">
+          📋 Копировать
+        </button>
+        <div class="event-log" id="console-log" style="max-height: 300px; overflow-y: auto;">
+          <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-2">
+        <button class="btn btn-outline-secondary" id="btn-clear-log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ГЛОБАЛЬНЫЕ КНОПКИ -->
+    <!-- ============================================================ -->
+    <div class="test-buttons mt-4">
+      <button class="btn btn-success btn-lg" id="btn-auto-test-all">
+        ▶️ Запустить авто-тест всех секций
+      </button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-03-live-validation.html" class="btn btn-outline-secondary">
+        ← Предыдущий тест: Live-валидация
+      </a>
+      <a href="test-05-error-handling.html" class="btn btn-outline-primary">
+        → Следующий тест: Обработка ошибок
+      </a>
+    </div>
+  </div>
+
+  <!-- ✅ Modia Index (3 уровня вверх!) -->
+  <script type="module" src="../../../modia/index.js"></script>
+
+  <!-- ✅ Тестовый скрипт -->
+  <script type="module">
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Multiple Forms Test] ${message}`);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setFormStatus(formId, status, message) {
+      const $status = $(`#${formId}-status`);
+      $status.removeClass('success error pending').addClass(status);
+      $status.text(`Статус: ${message}`);
+    }
+
+    // ============================================================
+    // КОПИРОВАНИЕ ЛОГА В БУФЕР ОБМЕНА (с сохранением переносов)
+    // ============================================================
+
+    function copyLogToClipboard() {
+      const $log = $('#console-log');
+
+      // ✅ Получаем текст с сохранением переносов строк
+      const lines = [];
+      $log.find('div').each(function () {
+        lines.push($(this).text().trim());
+      });
+      const text = lines.join('\n');
+
+      if (!text) {
+        log('❌ Нечего копировать — лог пуст', 'error');
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          log('✅ Лог скопирован в буфер обмена', 'success');
+          const $btn = $('#btn-copy-log');
+          const originalText = $btn.text();
+          $btn.text('✅ Скопировано!').prop('disabled', true);
+          setTimeout(() => {
+            $btn.text(originalText).prop('disabled', false);
+          }, 2000);
+        }).catch(err => {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        });
+      } else {
+        const $textarea = $('<textarea>').val(text).css({
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px'
+        }).appendTo('body');
+
+        $textarea[0].select();
+        try {
+          document.execCommand('copy');
+          log('✅ Лог скопирован в буфер обмена (fallback)', 'success');
+        } catch (err) {
+          log(`❌ Ошибка копирования (fallback): ${err.message}`, 'error');
+        }
+        $textarea.remove();
+      }
+
+      return true;
+    }
+
+    // ============================================================
+    // СЕКЦИЯ 1: Две независимые формы
+    // ============================================================
+
+    $(document).ready(function () {
+      log('DOM готов, ожидание инициализации Modia...', 'info');
+
+      setTimeout(function () {
+        log('Modia инициализирован', 'success');
+
+        const $formReg = $('#form-registration');
+        const $formLogin = $('#form-login');
+        const compReg = $formReg.data('modia-component');
+        const compLogin = $formLogin.data('modia-component');
+
+        if (compReg && compLogin) {
+          log(`✅ Найдено 2 компонента: Регистрация + Вход`, 'success');
+          log(`   Регистрация: live=${compReg.config.live}`, 'info');
+          log(`   Вход: live=${compLogin.config.live}`, 'info');
+        }
+
+        // Обработчики для Формы 1
+        $formReg.on('validation:invalid', function (e, data) {
+          setFormStatus('form-registration', 'error', `Ошибок: ${data.errors.length}`);
+        });
+        $formReg.on('validation:valid', function () {
+          setFormStatus('form-registration', 'success', 'Форма валидна!');
+        });
+
+        // Обработчики для Формы 2
+        $formLogin.on('validation:invalid', function (e, data) {
+          setFormStatus('form-login', 'error', `Ошибок: ${data.errors.length}`);
+        });
+        $formLogin.on('validation:valid', function () {
+          setFormStatus('form-login', 'success', 'Форма валидна!');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 2: Форма + контейнер
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form = $('#form-regular');
+        const $container = $('#container-modal');
+        const compForm = $form.data('modia-component');
+        const compContainer = $container.data('modia-component');
+
+        if (compForm && compContainer) {
+          log(`✅ Найдено 2 компонента: form + div`, 'success');
+        }
+
+        // Обработчики для формы
+        $form.on('validation:invalid', function (e, data) {
+          setFormStatus('form-regular', 'error', `Ошибок: ${data.errors.length}`);
+        });
+        $form.on('validation:valid', function () {
+          setFormStatus('form-regular', 'success', 'Форма валидна!');
+        });
+
+        // Обработчики для контейнера
+        $container.on('validation:manual-check', function (e, data) {
+          if (data.isValid) {
+            setFormStatus('container-modal', 'success', 'Валидация успешна!');
+          } else {
+            setFormStatus('container-modal', 'error', 'Есть ошибки');
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 3: Изоляция экземпляров
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        // Проверка экземпляров
+        $('#btn-check-instances').on('click', function () {
+          const compA = $('#form-a').data('modia-component');
+          const compB = $('#form-b').data('modia-component');
+
+          let info = `Найдено компонентов: 2\n`;
+          info += `Форма A: ${compA ? '✅' : '❌'} инициализирован\n`;
+          info += `Форма B: ${compB ? '✅' : '❌'} инициализирован\n`;
+          info += `Это разные экземпляры: ${compA !== compB ? '✅' : '❌'}\n`;
+
+          $('#instances-info').text(info);
+          log('🔍 Проверка экземпляров выполнена', 'info');
+        });
+
+        // Проверка конфигов
+        $('#btn-check-configs').on('click', function () {
+          const compA = $('#form-a').data('modia-component');
+          const compB = $('#form-b').data('modia-component');
+
+          let info = `Конфигурация Форма A:\n`;
+          info += JSON.stringify(compA?.config, null, 2) + `\n\n`;
+          info += `Конфигурация Форма B:\n`;
+          info += JSON.stringify(compB?.config, null, 2);
+
+          $('#instances-info').text(info);
+          log('🔍 Проверка конфигов выполнена', 'info');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 1
+    // ============================================================
+
+    $('#btn-auto-test-section-1').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 1: Начало ===', 'info');
+
+        const compReg = $('#form-registration').data('modia-component');
+        const compLogin = $('#form-login').data('modia-component');
+
+        // Шаг 1: Пустая Форма 1 → ошибка только в ней
+        log('Шаг 1: Валидация пустой Формы 1...', 'info');
+        $('#form-registration')[0].reset();
+        compReg.clearErrors();
+
+        // ✅ Заполняем Form 2, чтобы она была валидна
+        $('#login-email').val('user@example.com');
+        $('#login-password').val('password123');
+
+        await sleep(300);
+
+        const isValidReg1 = compReg.validate();
+        const isValidLogin1 = compLogin.validate();
+
+        if (!isValidReg1 && isValidLogin1) {
+          log('✅ Шаг 1: Ошибка только в Форме 1', 'success');
+        } else {
+          throw new Error(`Формы должны быть независимы: Reg=${isValidReg1}, Login=${isValidLogin1}`);
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Заполненная Форма 2 → успех только в ней
+        log('Шаг 2: Заполнение Формы 2...', 'info');
+        $('#login-email').val('user@example.com');
+        $('#login-password').val('password123');
+        await sleep(300);
+
+        const isValidReg2 = compReg.validate();
+        const isValidLogin2 = compLogin.validate();
+
+        if (!isValidReg2 && isValidLogin2) {
+          log('✅ Шаг 2: Успех только в Форме 2', 'success');
+        } else {
+          throw new Error('Формы должны быть независимы');
+        }
+
+        log('=== Авто-тест секции 1: Успешно ===', 'success');
+        $('#test-result-1').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-1').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 1');
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 2
+    // ============================================================
+
+    $('#btn-auto-test-section-2').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 2: Начало ===', 'info');
+
+        const compForm = $('#form-regular').data('modia-component');
+        const compContainer = $('#container-modal').data('modia-component');
+
+        // Шаг 1: Пустая форма → ошибка
+        log('Шаг 1: Валидация пустой формы...', 'info');
+        $('#form-regular')[0].reset();
+        compForm.clearErrors();
+        await sleep(300);
+
+        const isValidForm = compForm.validate();
+        if (!isValidForm) {
+          log('✅ Шаг 1: Форма не валидна', 'success');
+        } else {
+          throw new Error('Пустая форма должна быть невалидна');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Заполненный контейнер → успех
+        log('Шаг 2: Заполнение контейнера...', 'info');
+        $('#modal-name').val('Тест');
+        await sleep(300);
+
+        const isValidContainer = compContainer.validate();
+        if (isValidContainer) {
+          log('✅ Шаг 2: Контейнер валиден', 'success');
+        } else {
+          throw new Error('Заполненный контейнер должен быть валиден');
+        }
+
+        log('=== Авто-тест секции 2: Успешно ===', 'success');
+        $('#test-result-2').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-2').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 2');
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 3
+    // ============================================================
+
+    $('#btn-auto-test-section-3').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 3: Начало ===', 'info');
+
+        const compA = $('#form-a').data('modia-component');
+        const compB = $('#form-b').data('modia-component');
+
+        // Шаг 1: Проверка наличия компонентов
+        log('Шаг 1: Проверка инициализации...', 'info');
+        if (!compA || !compB) {
+          throw new Error('Компоненты не инициализированы');
+        }
+
+        // Шаг 2: Проверка независимости конфигов
+        log('Шаг 2: Проверка конфигов...', 'info');
+        if (compA.config.live !== false) {
+          throw new Error('Форма A должна иметь live=false');
+        }
+        if (compB.config.live !== true) {
+          throw new Error('Форма B должна иметь live=true');
+        }
+
+        // Шаг 3: Проверка независимости валидации
+        log('Шаг 3: Проверка независимой валидации...', 'info');
+        $('#field-a').val('');
+        $('#field-b').val('заполнено');
+        await sleep(300);
+
+        const validA = compA.validate();
+        const validB = compB.validate();
+
+        if (!validA && validB) {
+          log('✅ Шаг 3: Валидация независима', 'success');
+        } else {
+          throw new Error('Валидация должна быть независимой');
+        }
+
+        log('=== Авто-тест секции 3: Успешно ===', 'success');
+        $('#test-result-3').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-3').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 3');
+      }
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ АВТО-ТЕСТ
+    // ============================================================
+
+    $('#btn-auto-test-all').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Начало ===', 'info');
+
+      await $('#btn-auto-test-section-1').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-2').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-3').click();
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Завершён ===', 'success');
+
+      $btn.prop('disabled', false).text('▶️ Запустить авто-тест всех секций');
+    });
+
+    // ============================================================
+    // ОБРАБОТЧИКИ ЛОГА
+    // ============================================================
+
+    $('#btn-copy-log').on('click', function (e) {
+      e.preventDefault();
+      copyLogToClipboard();
+    });
+
+    $('#btn-clear-log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен</small></div>');
+      log('Лог очищен пользователем', 'info');
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК
+    // ============================================================
+
+    window.addEventListener('error', function (e) {
+      log(`❌ Глобальная ошибка: ${e.message} в ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function (e) {
+      log(`❌ Необработанная Promise-ошибка: ${e.reason}`, 'error');
+    });
+  </script>
+</body>
+
+</html>

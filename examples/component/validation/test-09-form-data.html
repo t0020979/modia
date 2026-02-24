@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест ValidationComponent (getFormData и getErrors)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS (скрывает шаблоны ошибок) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .test-form {
+      max-width: 500px;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .form-status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .form-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .form-status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .console-log-container {
+      position: relative;
+    }
+
+    .btn-copy-log {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .data-output {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .method-result {
+      background: #e7f3ff;
+      border-left: 4px solid #007bff;
+      padding: 10px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест ValidationComponent</h1>
+    <p class="text-muted">Методы getFormData() и getErrors() — сбор данных и ошибок</p>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 1: getFormData() — базовая сериализация -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 1: getFormData() — базовая сериализация</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li><code>getFormData()</code> возвращает объект с данными формы</li>
+          <li>Все поля сериализуются корректно</li>
+          <li>Пустые поля возвращают пустую строку</li>
+          <li>Для не-форм возвращает <code>null</code></li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Заполните поля формы<br>
+        2. Нажмите <code>🔍 Получить данные формы</code> → объект данных<br>
+        3. Очистите форму → нажмите снова → пустые значения<br>
+        4. Проверьте консоль для деталей
+      </div>
+
+      <form id="form-data-1" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="data-name">Имя *</label>
+          <input type="text" id="data-name" name="name" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="data-email">Email *</label>
+          <input type="email" id="data-email" name="email" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="data-phone">Телефон</label>
+          <input type="tel" id="data-phone" name="phone" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label for="data-message">Сообщение</label>
+          <textarea id="data-message" name="message" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+          <span class="text-danger" data-rule="email">Некорректный email</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-info btn-sm" id="btn-get-form-data-1">
+            🔍 Получить данные формы
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-fill-form-1">
+            ✏️ Заполнить форму
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-clear-form-1">
+            🗑️ Очистить форму
+          </button>
+        </div>
+      </form>
+
+      <div id="form-data-1-output" class="data-output">Данные формы: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-1">
+          ▶️ Авто-тест секции 1
+        </button>
+      </div>
+
+      <div id="test-result-1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 2: getFormData() — массивы полей -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 2: getFormData() — массивы полей (name='field[]')</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Поля с <code>name='field[]'</code> возвращают массив</li>
+          <li>Пустые поля в массиве сохраняются как пустые строки</li>
+          <li>Массив корректно сериализуется в объект</li>
+          <li>Множественный select тоже возвращает массив</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Заполните 1-2 поля из группы тегов<br>
+        2. Нажмите <code>🔍 Получить данные формы</code> → массив в объекте<br>
+        3. Выберите несколько вариантов в select<br>
+        4. Проверьте вывод — массивы корректны
+      </div>
+
+      <form id="form-data-2" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label>Теги (можно несколько)</label>
+          <input type="text" name="tags[]" class="form-control mb-2" placeholder="Тег 1">
+          <input type="text" name="tags[]" class="form-control mb-2" placeholder="Тег 2">
+          <input type="text" name="tags[]" class="form-control" placeholder="Тег 3">
+        </div>
+
+        <div class="form-group">
+          <label>Категории (множественный выбор)</label>
+          <select name="categories[]" class="form-control" multiple size="4">
+            <option value="cat1">Категория 1</option>
+            <option value="cat2">Категория 2</option>
+            <option value="cat3">Категория 3</option>
+            <option value="cat4">Категория 4</option>
+          </select>
+          <small class="text-muted">Удерживайте Ctrl/Cmd для выбора нескольких</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-info btn-sm" id="btn-get-form-data-2">
+            🔍 Получить данные формы
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-fill-form-2">
+            ✏️ Заполнить форму
+          </button>
+        </div>
+      </form>
+
+      <div id="form-data-2-output" class="data-output">Данные формы: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-2">
+          ▶️ Авто-тест секции 2
+        </button>
+      </div>
+
+      <div id="test-result-2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 3: getErrors() — сбор ошибок -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 3: getErrors() — сбор ошибок после валидации</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li><code>getErrors()</code> возвращает массив ошибок</li>
+          <li>Каждая ошибка содержит <code>field</code> и <code>message</code></li>
+          <li>После <code>clearErrors()</code> массив пустой</li>
+          <li>Ошибки собираются со всех невалидных полей</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Оставьте поля пустыми → нажмите <code>📝 Валидировать</code><br>
+        2. Нажмите <code>🔍 Получить ошибки</code> → массив ошибок<br>
+        3. Заполните поля → валидируйте → ошибок нет<br>
+        4. Проверьте консоль для деталей
+      </div>
+
+      <form id="form-data-3" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="errors-name">Имя *</label>
+          <input type="text" id="errors-name" name="name" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="errors-email">Email *</label>
+          <input type="email" id="errors-email" name="email" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="errors-age">Возраст *</label>
+          <input type="number" id="errors-age" name="age" class="form-control" required>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+          <span class="text-danger" data-rule="email">Некорректный email</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-3">
+            📝 Валидировать
+          </button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-get-errors-3">
+            🔍 Получить ошибки
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-clear-errors-3">
+            🗑️ Очистить ошибки
+          </button>
+        </div>
+      </form>
+
+      <div id="form-errors-3-output" class="data-output">Ошибки: (ожидание)</div>
+      <div id="form-errors-3-count" class="method-result">Количество ошибок: 0</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-3">
+          ▶️ Авто-тест секции 3
+        </button>
+      </div>
+
+      <div id="test-result-3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 4: getFormData() для не-форм (div контейнер) -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 4: getFormData() для не-форм (div контейнер)</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li><code>getFormData()</code> на div возвращает <code>null</code></li>
+          <li>Компонент не падает на не-форм элементах</li>
+          <li>Валидация работает на div (для модалок)</li>
+          <li>getErrors() работает на div</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>🔍 Получить данные</code> → должно вернуть <code>null</code><br>
+        2. Заполните поле → нажмите <code>📝 Валидировать</code><br>
+        3. Нажмите <code>🔍 Получить ошибки</code> → ошибки собираются<br>
+        4. Проверьте консоль
+      </div>
+
+      <!-- Контейнер (не форма!) -->
+      <div id="container-data-4" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="container-name">Имя *</label>
+          <input type="text" id="container-name" name="name" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="container-email">Email *</label>
+          <input type="email" id="container-email" name="email" class="form-control" required>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-info btn-sm" id="btn-get-data-4">
+            🔍 Получить данные (div)
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-4">
+            📝 Валидировать
+          </button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-get-errors-4">
+            🔍 Получить ошибки
+          </button>
+        </div>
+      </div>
+
+      <div id="container-data-4-output" class="data-output">Данные: (ожидание)</div>
+      <div id="container-errors-4-output" class="data-output">Ошибки: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-4">
+          ▶️ Авто-тест секции 4
+        </button>
+      </div>
+
+      <div id="test-result-4" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- КОНСОЛЬ ЛОГГЕРА -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📋 Консоль логгера</h3>
+
+      <div class="console-log-container">
+        <button class="btn btn-sm btn-outline-secondary btn-copy-log" id="btn-copy-log">
+          📋 Копировать
+        </button>
+        <div class="event-log" id="console-log" style="max-height: 300px; overflow-y: auto;">
+          <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-2">
+        <button class="btn btn-outline-secondary" id="btn-clear-log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ГЛОБАЛЬНЫЕ КНОПКИ -->
+    <!-- ============================================================ -->
+    <div class="test-buttons mt-4">
+      <button class="btn btn-success btn-lg" id="btn-auto-test-all">
+        ▶️ Запустить авто-тест всех секций
+      </button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-08-hooks-events.html" class="btn btn-outline-secondary">
+        ← Предыдущий тест: События-хуки
+      </a>
+      <span class="text-muted mx-2">|</span>
+      <span class="text-success">✅ Все тесты ValidationComponent завершены</span>
+    </div>
+  </div>
+
+  <!-- ✅ Modia Index (3 уровня вверх!) -->
+  <script type="module" src="../../../modia/index.js"></script>
+
+  <!-- ✅ Тестовый скрипт -->
+  <script type="module">
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+
+    let testRunning = false;
+
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Form Data Test] ${message}`);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setFormStatus(formId, status, message) {
+      const $status = $(`#${formId}-status`);
+      $status.removeClass('success error pending').addClass(status);
+      $status.text(`Статус: ${message}`);
+    }
+
+    // ============================================================
+    // КОПИРОВАНИЕ ЛОГА В БУФЕР ОБМЕНА
+    // ============================================================
+
+    function copyLogToClipboard() {
+      const $log = $('#console-log');
+      const lines = [];
+      $log.find('div').each(function () {
+        lines.push($(this).text().trim());
+      });
+      const text = lines.join('\n');
+
+      if (!text) {
+        log('❌ Нечего копировать — лог пуст', 'error');
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          log('✅ Лог скопирован в буфер обмена', 'success');
+          const $btn = $('#btn-copy-log');
+          const originalText = $btn.text();
+          $btn.text('✅ Скопировано!').prop('disabled', true);
+          setTimeout(() => {
+            $btn.text(originalText).prop('disabled', false);
+          }, 2000);
+        }).catch(err => {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        });
+      } else {
+        const $textarea = $('<textarea>').val(text).css({
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px'
+        }).appendTo('body');
+
+        $textarea[0].select();
+        try {
+          document.execCommand('copy');
+          log('✅ Лог скопирован (fallback)', 'success');
+        } catch (err) {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        }
+        $textarea.remove();
+      }
+
+      return true;
+    }
+
+    // ============================================================
+    // СЕКЦИЯ 1: getFormData() — базовая сериализация
+    // ============================================================
+
+    $(document).ready(function () {
+      log('DOM готов, ожидание инициализации Modia...', 'info');
+
+      setTimeout(function () {
+        log('Modia инициализирован', 'success');
+
+        const $form1 = $('#form-data-1');
+        const comp1 = $form1.data('modia-component');
+
+        if (comp1) {
+          log(`✅ Компонент найден: ${comp1.constructor.name}`, 'success');
+        }
+
+        // Получить данные формы
+        $('#btn-get-form-data-1').on('click', function () {
+          if (comp1) {
+            const data = comp1.getFormData();
+            log('🔍 getFormData(): ' + JSON.stringify(data, null, 2), 'info');
+            $('#form-data-1-output').text('Данные формы:\n' + JSON.stringify(data, null, 2));
+          }
+        });
+
+        // Заполнить форму
+        $('#btn-fill-form-1').on('click', function () {
+          $('#data-name').val('Иван Иванов');
+          $('#data-email').val('ivan@example.com');
+          $('#data-phone').val('+7 (999) 123-45-67');
+          $('#data-message').val('Тестовое сообщение');
+          log('✏️ Форма заполнена', 'info');
+        });
+
+        // Очистить форму
+        $('#btn-clear-form-1').on('click', function () {
+          $form1[0].reset();
+          if (comp1) comp1.clearErrors();
+          log('🗑️ Форма очищена', 'info');
+          $('#form-data-1-output').text('Данные формы: (ожидание)');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 2: getFormData() — массивы полей
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form2 = $('#form-data-2');
+        const comp2 = $form2.data('modia-component');
+
+        // Получить данные формы
+        $('#btn-get-form-data-2').on('click', function () {
+          if (comp2) {
+            const data = comp2.getFormData();
+            log('🔍 getFormData(): ' + JSON.stringify(data, null, 2), 'info');
+            $('#form-data-2-output').text('Данные формы:\n' + JSON.stringify(data, null, 2));
+
+            // Проверка массивов
+            if (Array.isArray(data.tags)) {
+              log(`✅ tags — массив (${data.tags.length} элементов)`, 'success');
+            }
+            if (Array.isArray(data.categories)) {
+              log(`✅ categories — массив (${data.categories.length} элементов)`, 'success');
+            }
+          }
+        });
+
+        // Заполнить форму
+        $('#btn-fill-form-2').on('click', function () {
+          $('input[name="tags[]"]').eq(0).val('tag1');
+          $('input[name="tags[]"]').eq(1).val('tag2');
+          $('select[name="categories[]"]').val(['cat1', 'cat3']);
+          log('✏️ Форма заполнена', 'info');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 3: getErrors() — сбор ошибок
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form3 = $('#form-data-3');
+        const comp3 = $form3.data('modia-component');
+
+        // Валидация
+        $('#btn-validate-3').on('click', function () {
+          if (comp3) {
+            const isValid = comp3.validate();
+            log(`📝 Валидация: ${isValid}`, isValid ? 'success' : 'error');
+            setFormStatus('form-data-3', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна' : 'Есть ошибки');
+          }
+        });
+
+        // Получить ошибки
+        $('#btn-get-errors-3').on('click', function () {
+          if (comp3) {
+            const errors = comp3.getErrors();
+            log('🔍 getErrors(): ' + JSON.stringify(errors, null, 2), 'info');
+            $('#form-errors-3-output').text('Ошибки:\n' + JSON.stringify(errors, null, 2));
+            $('#form-errors-3-count').text(`Количество ошибок: ${errors.length}`);
+          }
+        });
+
+        // Очистить ошибки
+        $('#btn-clear-errors-3').on('click', function () {
+          if (comp3) {
+            comp3.clearErrors();
+            const errors = comp3.getErrors();
+            log('🗑️ Ошибки очищены', 'info');
+            $('#form-errors-3-output').text('Ошибки: (ожидание)');
+            $('#form-errors-3-count').text(`Количество ошибок: ${errors.length}`);
+            setFormStatus('form-data-3', 'pending', 'Ошибки очищены');
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 4: getFormData() для div контейнера
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $container4 = $('#container-data-4');
+        const comp4 = $container4.data('modia-component');
+
+        // Получить данные (div → null)
+        $('#btn-get-data-4').on('click', function () {
+          if (comp4) {
+            const data = comp4.getFormData();
+            log('🔍 getFormData() для div: ' + JSON.stringify(data), 'info');
+            $('#container-data-4-output').text('Данные:\n' + JSON.stringify(data));
+
+            if (data === null) {
+              log('✅ getFormData() вернул null для div (ожидаемо)', 'success');
+            }
+          }
+        });
+
+        // Валидация
+        $('#btn-validate-4').on('click', function () {
+          if (comp4) {
+            const isValid = comp4.validate();
+            log(`📝 Валидация div: ${isValid}`, isValid ? 'success' : 'error');
+          }
+        });
+
+        // Получить ошибки
+        $('#btn-get-errors-4').on('click', function () {
+          if (comp4) {
+            const errors = comp4.getErrors();
+            log('🔍 getErrors() для div: ' + JSON.stringify(errors, null, 2), 'info');
+            $('#container-errors-4-output').text('Ошибки:\n' + JSON.stringify(errors, null, 2));
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 1
+    // ============================================================
+
+    $('#btn-auto-test-section-1').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 1: Начало ===', 'info');
+
+        const comp1 = $('#form-data-1').data('modia-component');
+
+        // Шаг 1: Пустая форма
+        log('Шаг 1: getFormData() пустой формы...', 'info');
+        $('#form-data-1')[0].reset();
+        await sleep(300);
+
+        const data1 = comp1.getFormData();
+        if (typeof data1 === 'object' && data1 !== null) {
+          log('✅ Шаг 1: getFormData() вернул объект', 'success');
+        } else {
+          throw new Error('getFormData() должен вернуть объект');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Заполненная форма
+        log('Шаг 2: getFormData() заполненной формы...', 'info');
+        $('#btn-fill-form-1').click();
+        await sleep(300);
+
+        const data2 = comp1.getFormData();
+        if (data2.name === 'Иван Иванов' && data2.email === 'ivan@example.com') {
+          log('✅ Шаг 2: Данные корректны', 'success');
+        } else {
+          throw new Error('Данные не совпадают');
+        }
+
+        log('=== Авто-тест секции 1: Успешно ===', 'success');
+        $('#test-result-1').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-1').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 1');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 2
+    // ============================================================
+
+    $('#btn-auto-test-section-2').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 2: Начало ===', 'info');
+
+        const comp2 = $('#form-data-2').data('modia-component');
+
+        // Шаг 1: Заполнить массивы
+        log('Шаг 1: Заполнение массивов...', 'info');
+        $('#btn-fill-form-2').click();
+        await sleep(300);
+
+        const data = comp2.getFormData();
+
+        // Шаг 2: Проверка tags[]
+        log('Шаг 2: Проверка tags[]...', 'info');
+        if (Array.isArray(data.tags)) {
+          log(`✅ tags — массив (${data.tags.length} элементов)`, 'success');
+        } else {
+          throw new Error('tags должен быть массивом');
+        }
+
+        // Шаг 3: Проверка categories[]
+        log('Шаг 3: Проверка categories[]...', 'info');
+        if (Array.isArray(data.categories)) {
+          log(`✅ categories — массив (${data.categories.length} элементов)`, 'success');
+        } else {
+          throw new Error('categories должен быть массивом');
+        }
+
+        log('=== Авто-тест секции 2: Успешно ===', 'success');
+        $('#test-result-2').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-2').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 2');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 3
+    // ============================================================
+
+    $('#btn-auto-test-section-3').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 3: Начало ===', 'info');
+
+        const comp3 = $('#form-data-3').data('modia-component');
+
+        // Шаг 1: Валидация пустой формы → ошибки
+        log('Шаг 1: Валидация пустой формы...', 'info');
+        $('#form-data-3')[0].reset();
+        comp3.clearErrors();
+        await sleep(300);
+
+        comp3.validate();
+        const errors1 = comp3.getErrors();
+
+        if (errors1.length > 0) {
+          log(`✅ Шаг 1: Найдено ошибок: ${errors1.length}`, 'success');
+        } else {
+          throw new Error('Должны быть ошибки');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Очистка ошибок → пустой массив
+        log('Шаг 2: Очистка ошибок...', 'info');
+        comp3.clearErrors();
+        const errors2 = comp3.getErrors();
+
+        if (errors2.length === 0) {
+          log('✅ Шаг 2: Ошибки очищены', 'success');
+        } else {
+          throw new Error('Ошибки должны быть очищены');
+        }
+
+        await sleep(500);
+
+        // Шаг 3: Заполнение → валидация → нет ошибок
+        log('Шаг 3: Заполнение и валидация...', 'info');
+        $('#errors-name').val('Иван');
+        $('#errors-email').val('ivan@example.com');
+        $('#errors-age').val('25');
+        await sleep(300);
+
+        comp3.validate();
+        const errors3 = comp3.getErrors();
+
+        if (errors3.length === 0) {
+          log('✅ Шаг 3: Ошибок нет', 'success');
+        } else {
+          throw new Error('Не должно быть ошибок');
+        }
+
+        log('=== Авто-тест секции 3: Успешно ===', 'success');
+        $('#test-result-3').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-3').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 3');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 4
+    // ============================================================
+
+    $('#btn-auto-test-section-4').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 4: Начало ===', 'info');
+
+        const comp4 = $('#container-data-4').data('modia-component');
+
+        // Шаг 1: getFormData() для div → null
+        log('Шаг 1: getFormData() для div...', 'info');
+        const data = comp4.getFormData();
+
+        if (data === null) {
+          log('✅ Шаг 1: getFormData() вернул null для div', 'success');
+        } else {
+          throw new Error('getFormData() должен вернуть null для div');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: getErrors() для div → работает
+        log('Шаг 2: getErrors() для div...', 'info');
+        $('#container-name').val('');
+        $('#container-email').val('');
+        comp4.validate();
+        const errors = comp4.getErrors();
+
+        if (Array.isArray(errors)) {
+          log(`✅ Шаг 2: getErrors() вернул массив (${errors.length} ошибок)`, 'success');
+        } else {
+          throw new Error('getErrors() должен вернуть массив');
+        }
+
+        log('=== Авто-тест секции 4: Успешно ===', 'success');
+        $('#test-result-4').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-4').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 4');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ АВТО-ТЕСТ
+    // ============================================================
+
+    $('#btn-auto-test-all').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Начало ===', 'info');
+
+      await $('#btn-auto-test-section-1').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-2').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-3').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-4').click();
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Завершён ===', 'success');
+
+      $btn.prop('disabled', false).text('▶️ Запустить авто-тест всех секций');
+      testRunning = false;
+    });
+
+    // ============================================================
+    // ОБРАБОТЧИКИ ЛОГА
+    // ============================================================
+
+    $('#btn-copy-log').on('click', function (e) {
+      e.preventDefault();
+      copyLogToClipboard();
+    });
+
+    $('#btn-clear-log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен</small></div>');
+      log('Лог очищен пользователем', 'info');
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК
+    // ============================================================
+
+    window.addEventListener('error', function (e) {
+      log(`❌ Глобальная ошибка: ${e.message} в ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function (e) {
+      log(`❌ Необработанная Promise-ошибка: ${e.reason}`, 'error');
+    });
+  </script>
+</body>
+
+</html>

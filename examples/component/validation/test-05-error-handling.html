@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест ValidationComponent (Обработка ошибок)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS (скрывает шаблоны ошибок) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .test-form {
+      max-width: 500px;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .form-status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .form-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .form-status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .console-log-container {
+      position: relative;
+    }
+
+    .btn-copy-log {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .edge-case-box {
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+
+    .edge-case-box h5 {
+      margin-top: 0;
+      color: #856404;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест ValidationComponent</h1>
+    <p class="text-muted">Обработка ошибок — устойчивость к крайним случаям</p>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 1: Пустая форма (нет полей) -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Пустая форма (нет полей для валидации)</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Компонент инициализируется без ошибок</li>
+          <li>Валидация возвращает <code>true</code> (нет полей = нет ошибок)</li>
+          <li>Форма отправляется без препятствий</li>
+          <li>Нет исключений в консоли</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Отправить</code> → форма должна отправиться<br>
+        2. Проверьте консоль — нет ошибок инициализации<br>
+        3. Нажмите <code>🔍 Проверить валидацию</code> → должно вернуть <code>true</code>
+      </div>
+
+      <div class="edge-case-box">
+        <h5>⚠️ Крайний случай: Форма без полей</h5>
+        <p>Компонент должен работать корректно, даже если в форме нет полей для валидации.</p>
+      </div>
+
+      <!-- Пустая форма -->
+      <form id="form-empty" data-component="validation" class="test-form">
+        <p class="text-muted">Эта форма не содержит полей для валидации</p>
+        <div class="form-group mt-3">
+          <button type="submit" class="btn btn-primary btn-sm">📝 Отправить</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-check-empty">🔍 Проверить валидацию</button>
+        </div>
+      </form>
+
+      <div id="form-empty-status" class="form-status pending">Статус: Ожидание...</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-1">
+          ▶️ Авто-тест секции 1
+        </button>
+      </div>
+
+      <div id="test-result-1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 2: Отключённые поля (disabled) → Включение → Валидация -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Отключённые поля (disabled) → Включение → Валидация</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Disabled поле пропускается при валидации (возвращает <code>true</code>)</li>
+          <li>После включения (enable) поле валидируется корректно</li>
+          <li>Пустое включённое поле → ошибка валидации</li>
+          <li>Заполненное включённое поле → успех</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать (disabled)</code> → успех (поле пропущено)<br>
+        2. Нажмите <code>🔄 Включить поле</code> → поле станет активным<br>
+        3. Нажмите <code>📝 Валидировать (enabled)</code> → ошибка (пустое поле)<br>
+        4. Заполните поле → нажмите <code>📝 Валидировать (enabled)</code> → успех
+      </div>
+
+      <div class="edge-case-box">
+        <h5>⚠️ Крайний случай: Изменение состояния disabled</h5>
+        <p>При изменении состояния поля необходимо вызвать <code>refreshRules()</code> для обновления кэша правил.</p>
+      </div>
+
+      <form id="form-disabled" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="disabled-field">Отключённое поле *</label>
+          <input type="text" id="disabled-field" name="disabled_field" class="form-control" required disabled>
+          <small class="text-muted">Это поле отключено (disabled)</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-disabled">📝 Валидировать
+            (disabled)</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-enable-field">🔄 Включить поле</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-enabled">📝 Валидировать (enabled)</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-fill-disabled">✏️ Заполнить поле</button>
+        </div>
+      </form>
+
+      <div id="form-disabled-status" class="form-status pending">Статус: Ожидание...</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-2">
+          ▶️ Авто-тест секции 2
+        </button>
+      </div>
+
+      <div id="test-result-2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 3: Скрытые поля (hidden) → Показ → Валидация -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 3: Скрытые поля (hidden) → Показ → Валидация</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Скрытое поле пропускается при валидации (возвращает <code>true</code>)</li>
+          <li>После показа поле валидируется корректно</li>
+          <li>Пустое показанное поле → ошибка валидации</li>
+          <li>Заполненное показанное поле → успех</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать (hidden)</code> → успех (поле скрыто)<br>
+        2. Нажмите <code>👁️ Показать поле</code> → поле станет видимым<br>
+        3. Нажмите <code>📝 Валидировать (shown)</code> → ошибка (пустое поле)<br>
+        4. Заполните поле → нажмите <code>📝 Валидировать (shown)</code> → успех
+      </div>
+
+      <div class="edge-case-box">
+        <h5>⚠️ Крайний случай: Изменение видимости поля</h5>
+        <p>При изменении видимости поля необходимо вызвать <code>refreshRules()</code> для обновления кэша правил.</p>
+      </div>
+
+      <form id="form-hidden" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="hidden-field">Скрытое поле *</label>
+          <input type="text" id="hidden-field" name="hidden_field" class="form-control d-none" required>
+          <small class="text-muted">Это поле скрыто (class="d-none")</small>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-hidden">📝 Валидировать (hidden)</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-show-field">👁️ Показать поле</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-shown">📝 Валидировать (shown)</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-fill-hidden">✏️ Заполнить поле</button>
+        </div>
+      </form>
+
+      <div id="form-hidden-status" class="form-status pending">Статус: Ожидание...</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-3">
+          ▶️ Авто-тест секции 3
+        </button>
+      </div>
+
+      <div id="test-result-3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 4: Уничтожение компонента (destroy) -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 4: Уничтожение компонента (destroy)</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li><code>destroy()</code> очищает ошибки перед уничтожением</li>
+          <li><code>destroy()</code> удаляет обработчики событий</li>
+          <li><code>destroy()</code> удаляет данные компонента</li>
+          <li>После destroy компонент не реагирует на события</li>
+          <li>Повторный вызов destroy не вызывает ошибок</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Создать ошибку</code> → ошибка появится<br>
+        2. Нажмите <code>🗑️ Уничтожить компонент</code> → ошибка очистится, компонент удалится<br>
+        3. Попробуйте валидировать → компонент не реагирует<br>
+        4. Нажмите <code>🗑️ Уничтожить компонент</code> повторно → нет ошибок
+      </div>
+
+      <div class="edge-case-box">
+        <h5>⚠️ Крайний случай: Повторное уничтожение</h5>
+        <p>Метод <code>destroy()</code> должен быть идемпотентным — повторный вызов не вызывает ошибок.</p>
+      </div>
+
+      <form id="form-destroy" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="destroy-field">Поле *</label>
+          <input type="text" id="destroy-field" name="destroy_field" class="form-control" required>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-danger btn-sm" id="btn-create-error">📝 Создать ошибку</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btn-destroy-component">🗑️ Уничтожить
+            компонент</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-check-destroy-status">🔍 Проверить статус</button>
+        </div>
+      </form>
+
+      <div id="form-destroy-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="destroy-status-output" class="registry-display">Статус компонента: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-4">
+          ▶️ Авто-тест секции 4
+        </button>
+      </div>
+
+      <div id="test-result-4" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 5: Восстановление после ошибок -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 5: Восстановление после ошибок</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>После ошибки валидация работает корректно</li>
+          <li><code>clearErrors()</code> очищает все ошибки</li>
+          <li>Повторная валидация работает после очистки</li>
+          <li>Компонент не «ломается» после множественных ошибок</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>📝 Валидировать</code> с пустыми полями → ошибки<br>
+        2. Нажмите <code>🗑️ Очистить ошибки</code> → ошибки исчезнут<br>
+        3. Заполните поля → нажмите <code>📝 Валидировать</code> → успех
+      </div>
+
+      <div class="edge-case-box">
+        <h5>⚠️ Крайний случай: Множественные ошибки</h5>
+        <p>Компонент должен корректно восстанавливаться после множественных ошибок валидации.</p>
+      </div>
+
+      <form id="form-recovery" data-component="validation" class="test-form">
+        <div class="form-group">
+          <label for="recovery-name">Имя *</label>
+          <input type="text" id="recovery-name" name="name" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="recovery-email">Email *</label>
+          <input type="email" id="recovery-email" name="email" class="form-control" required>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+          <span class="text-danger" data-rule="email">Некорректный email</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-recovery">📝 Валидировать</button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-clear-recovery">🗑️ Очистить
+            ошибки</button>
+          <button type="button" class="btn btn-outline-info btn-sm" id="btn-fill-recovery">✏️ Заполнить поля</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-reset-recovery">🔄 Очистить
+            поля</button>
+        </div>
+      </form>
+
+      <div id="form-recovery-status" class="form-status pending">Статус: Ожидание...</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-5">
+          ▶️ Авто-тест секции 5
+        </button>
+      </div>
+
+      <div id="test-result-5" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- КОНСОЛЬ ЛОГГЕРА -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📋 Консоль логгера</h3>
+
+      <div class="console-log-container">
+        <button class="btn btn-sm btn-outline-secondary btn-copy-log" id="btn-copy-log">
+          📋 Копировать
+        </button>
+        <div class="event-log" id="console-log" style="max-height: 300px; overflow-y: auto;">
+          <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-2">
+        <button class="btn btn-outline-secondary" id="btn-clear-log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ГЛОБАЛЬНЫЕ КНОПКИ -->
+    <!-- ============================================================ -->
+    <div class="test-buttons mt-4">
+      <button class="btn btn-success btn-lg" id="btn-auto-test-all">
+        ▶️ Запустить авто-тест всех секций
+      </button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-04-multiple-forms.html" class="btn btn-outline-secondary">
+        ← Предыдущий тест: Несколько форм
+      </a>
+      <a href="test-06-dynamic-fields.html" class="btn btn-outline-primary">
+        → Следующий тест: Динамические поля
+      </a>
+    </div>
+  </div>
+
+  <!-- ✅ Modia Index (3 уровня вверх!) -->
+  <script type="module" src="../../../modia/index.js"></script>
+
+  <!-- ✅ Тестовый скрипт -->
+  <script type="module">
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+
+    let testRunning = false;
+
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Error Handling Test] ${message}`);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setFormStatus(formId, status, message) {
+      const $status = $(`#${formId}-status`);
+      $status.removeClass('success error pending').addClass(status);
+      $status.text(`Статус: ${message}`);
+    }
+
+    // ============================================================
+    // КОПИРОВАНИЕ ЛОГА В БУФЕР ОБМЕНА (с сохранением переносов)
+    // ============================================================
+
+    function copyLogToClipboard() {
+      const $log = $('#console-log');
+
+      // ✅ Получаем текст с сохранением переносов строк
+      const lines = [];
+      $log.find('div').each(function () {
+        lines.push($(this).text().trim());
+      });
+      const text = lines.join('\n');
+
+      if (!text) {
+        log('❌ Нечего копировать — лог пуст', 'error');
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          log('✅ Лог скопирован в буфер обмена', 'success');
+          const $btn = $('#btn-copy-log');
+          const originalText = $btn.text();
+          $btn.text('✅ Скопировано!').prop('disabled', true);
+          setTimeout(() => {
+            $btn.text(originalText).prop('disabled', false);
+          }, 2000);
+        }).catch(err => {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        });
+      } else {
+        const $textarea = $('<textarea>').val(text).css({
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px'
+        }).appendTo('body');
+
+        $textarea[0].select();
+        try {
+          document.execCommand('copy');
+          log('✅ Лог скопирован в буфер обмена (fallback)', 'success');
+        } catch (err) {
+          log(`❌ Ошибка копирования (fallback): ${err.message}`, 'error');
+        }
+        $textarea.remove();
+      }
+
+      return true;
+    }
+
+    // ============================================================
+    // СЕКЦИЯ 1: Пустая форма
+    // ============================================================
+
+    $(document).ready(function () {
+      log('DOM готов, ожидание инициализации Modia...', 'info');
+
+      setTimeout(function () {
+        log('Modia инициализирован', 'success');
+
+        const $formEmpty = $('#form-empty');
+        const compEmpty = $formEmpty.data('modia-component');
+
+        if (compEmpty) {
+          log(`✅ Компонент пустой формы найден`, 'success');
+          log(`   Валидаторов: ${compEmpty.fieldValidators?.length || 0}`, 'info');
+        }
+
+        // Проверка валидации пустой формы
+        $('#btn-check-empty').on('click', function () {
+          if (compEmpty) {
+            const isValid = compEmpty.validate();
+            log(`🔍 Валидация пустой формы: ${isValid}`, isValid ? 'success' : 'error');
+            setFormStatus('form-empty', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна (нет полей)' : 'Ошибка валидации');
+          }
+        });
+
+        // Обработчик отправки
+        $formEmpty.on('submit', function (e) {
+          e.preventDefault();
+          log('📝 Пустая форма отправлена (demo)', 'success');
+          setFormStatus('form-empty', 'success', 'Форма отправлена!');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 2: Отключённые поля
+    // ============================================================
+
+    $(document).ready(function () {
+    setTimeout(function () {
+      const $formDisabled = $('#form-disabled');
+      const compDisabled = $formDisabled.data('modia-component');
+
+      let isDisabled = true;
+
+      // Валидация (disabled)
+      $('#btn-validate-disabled').on('click', function () {
+        if (compDisabled) {
+          const isValid = compDisabled.validate();
+          log(`📝 Валидация disabled-поля: ${isValid}`, isValid ? 'success' : 'error');
+          setFormStatus('form-disabled', isValid ? 'success' : 'error',
+            isValid ? 'Поле пропущено (disabled)' : 'Ошибка валидации');
+        }
+      });
+
+      // Включить поле
+      $('#btn-enable-field').on('click', function () {
+        const $field = $('#disabled-field');
+        $field.prop('disabled', false);
+        isDisabled = false;
+
+        // ✅ ВАЖНО: Обновляем правила и валидируем заново
+        if (compDisabled) {
+          compDisabled.refreshRules();
+          log('🔄 Поле включено, refreshRules() вызван', 'info');
+        }
+        setFormStatus('form-disabled', 'pending', 'Поле включено');
+      });
+
+      // Валидация (enabled)
+      $('#btn-validate-enabled').on('click', function () {
+        if (compDisabled) {
+          const isValid = compDisabled.validate();
+          log(`📝 Валидация enabled-поля: ${isValid}`, isValid ? 'success' : 'error');
+          setFormStatus('form-disabled', isValid ? 'success' : 'error',
+            isValid ? 'Валидация успешна' : 'Ошибка валидации');
+        }
+      });
+
+      // Заполнить поле
+      $('#btn-fill-disabled').on('click', function () {
+        $('#disabled-field').val('Тестовое значение');
+        log('✏️ Поле заполнено', 'info');
+        setFormStatus('form-disabled', 'pending', 'Поле заполнено');
+      });
+    }, 500);
+  });
+
+    // ============================================================
+    // СЕКЦИЯ 3: Скрытые поля
+    // ============================================================
+
+    $(document).ready(function () {
+    setTimeout(function () {
+      const $formHidden = $('#form-hidden');
+      const compHidden = $formHidden.data('modia-component');
+
+      let isHidden = true;
+
+      // Валидация (hidden)
+      $('#btn-validate-hidden').on('click', function () {
+        if (compHidden) {
+          const isValid = compHidden.validate();
+          log(`📝 Валидация hidden-поля: ${isValid}`, isValid ? 'success' : 'error');
+          setFormStatus('form-hidden', isValid ? 'success' : 'error',
+            isValid ? 'Поле пропущено (hidden)' : 'Ошибка валидации');
+        }
+      });
+
+      // Показать поле
+      $('#btn-show-field').on('click', function () {
+        const $field = $('#hidden-field');
+        $field.removeClass('d-none');
+        isHidden = false;
+
+        // ✅ ВАЖНО: Обновляем правила и валидируем заново
+        if (compHidden) {
+          compHidden.refreshRules();
+          log('👁️ Поле показано, refreshRules() вызван', 'info');
+        }
+        setFormStatus('form-hidden', 'pending', 'Поле показано');
+      });
+
+      // Валидация (shown)
+      $('#btn-validate-shown').on('click', function () {
+        if (compHidden) {
+          const isValid = compHidden.validate();
+          log(`📝 Валидация shown-поля: ${isValid}`, isValid ? 'success' : 'error');
+          setFormStatus('form-hidden', isValid ? 'success' : 'error',
+            isValid ? 'Валидация успешна' : 'Ошибка валидации');
+        }
+      });
+
+      // Заполнить поле
+      $('#btn-fill-hidden').on('click', function () {
+        $('#hidden-field').val('Тестовое значение');
+        log('✏️ Поле заполнено', 'info');
+        setFormStatus('form-hidden', 'pending', 'Поле заполнено');
+      });
+    }, 500);
+  });
+
+  // ============================================================
+    // СЕКЦИЯ 4: Уничтожение компонента
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $formDestroy = $('#form-destroy');
+        let compDestroy = $formDestroy.data('modia-component');
+
+        // Создать ошибку
+        $('#btn-create-error').on('click', function () {
+          if (compDestroy) {
+            // Очищаем поле и валидируем → ошибка
+            $('#destroy-field').val('');
+            const isValid = compDestroy.validate();
+            log(`📝 Создать ошибку: isValid=${isValid}`, isValid ? 'warn' : 'success');
+            setFormStatus('form-destroy', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна' : 'Ошибка создана');
+          } else {
+            log('❌ Компонент уничтожен', 'error');
+            setFormStatus('form-destroy', 'error', 'Компонент уничтожен');
+          }
+        });
+
+        // Уничтожение
+        $('#btn-destroy-component').on('click', function () {
+          if (compDestroy) {
+            // ✅ ВАЖНО: Сначала валидируем (чтобы были ошибки), потом уничтожаем
+            compDestroy.validate();
+
+            // ✅ destroy() должен очистить ошибки внутри себя
+            compDestroy.destroy();
+            compDestroy = null;
+
+            log('🗑️ Компонент уничтожен', 'warn');
+            setFormStatus('form-destroy', 'error', 'Компонент уничтожен');
+            $('#destroy-status-output').text('Статус компонента: уничтожен');
+          } else {
+            log('⚠️ Компонент уже уничтожен', 'warn');
+            setFormStatus('form-destroy', 'error', 'Уже уничтожен');
+          }
+        });
+
+        // Проверка статуса
+        $('#btn-check-destroy-status').on('click', function () {
+          const status = compDestroy ? 'активен' : 'уничтожен';
+          const hasData = $formDestroy.data('modia-component') ? 'да' : 'нет';
+          $('#destroy-status-output').text(
+            `Статус компонента: ${status}\nДанные в DOM: ${hasData}`
+          );
+          log(`🔍 Статус компонента: ${status}, Данные: ${hasData}`, 'info');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 5: Восстановление после ошибок
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $formRecovery = $('#form-recovery');
+        const compRecovery = $formRecovery.data('modia-component');
+
+        // Валидация
+        $('#btn-validate-recovery').on('click', function () {
+          if (compRecovery) {
+            const isValid = compRecovery.validate();
+            log(`📝 Валидация: ${isValid}`, isValid ? 'success' : 'error');
+            setFormStatus('form-recovery', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна' : `Ошибок: ${compRecovery.getErrors().length}`);
+          }
+        });
+
+        // Очистка ошибок
+        $('#btn-clear-recovery').on('click', function () {
+          if (compRecovery) {
+            compRecovery.clearErrors();
+            log('🗑️ Ошибки очищены', 'info');
+            setFormStatus('form-recovery', 'pending', 'Ошибки очищены');
+          }
+        });
+
+        // Заполнение полей
+        $('#btn-fill-recovery').on('click', function () {
+          $('#recovery-name').val('Иван Иванов');
+          $('#recovery-email').val('ivan@example.com');
+          log('✏️ Поля заполнены', 'info');
+          setFormStatus('form-recovery', 'pending', 'Поля заполнены');
+        });
+
+        // Сброс формы
+        $('#btn-reset-recovery').on('click', function () {
+          $('#form-recovery')[0].reset();
+          if (compRecovery) {
+            compRecovery.clearErrors();
+          }
+          log('🔄 Поля очищены', 'info');
+          setFormStatus('form-recovery', 'pending', 'Поля очищены');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 1
+    // ============================================================
+
+    $('#btn-auto-test-section-1').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 1: Начало ===', 'info');
+
+        const compEmpty = $('#form-empty').data('modia-component');
+
+        // Шаг 1: Проверка инициализации
+        log('Шаг 1: Проверка инициализации...', 'info');
+        if (!compEmpty) {
+          throw new Error('Компонент не инициализирован');
+        }
+
+        // Шаг 2: Валидация пустой формы
+        log('Шаг 2: Валидация пустой формы...', 'info');
+        const isValid = compEmpty.validate();
+        if (isValid) {
+          log('✅ Шаг 2: Пустая форма валидна (нет полей)', 'success');
+        } else {
+          throw new Error('Пустая форма должна быть валидна');
+        }
+
+        log('=== Авто-тест секции 1: Успешно ===', 'success');
+        $('#test-result-1').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-1').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 1');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 2
+    // ============================================================
+
+    $('#btn-auto-test-section-2').on('click', async function () {
+    if (testRunning) return;
+    testRunning = true;
+
+    const $btn = $(this);
+    $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+    try {
+      log('=== Авто-тест секции 2: Начало ===', 'info');
+
+      const compDisabled = $('#form-disabled').data('modia-component');
+
+      // Шаг 1: Disabled поле → пропускается
+      log('Шаг 1: Валидация disabled поля...', 'info');
+      $('#disabled-field').prop('disabled', true).val('');
+      if (compDisabled) compDisabled.refreshRules();
+      await sleep(300);
+
+      const isValid1 = compDisabled.validate();
+      if (isValid1) {
+        log('✅ Шаг 1: Disabled поле пропущено', 'success');
+      } else {
+        throw new Error('Disabled поле должно быть пропущено');
+      }
+
+      await sleep(500);
+
+      // Шаг 2: Включить поле → ошибка (пустое)
+      log('Шаг 2: Включение поля...', 'info');
+      $('#disabled-field').prop('disabled', false);
+      if (compDisabled) compDisabled.refreshRules();
+      await sleep(300);
+
+      const isValid2 = compDisabled.validate();
+      if (!isValid2) {
+        log('✅ Шаг 2: Включённое пустое поле невалидно', 'success');
+      } else {
+        throw new Error('Включённое пустое поле должно быть невалидно');
+      }
+
+      await sleep(500);
+
+      // Шаг 3: Заполнить поле → успех
+      log('Шаг 3: Заполнение поля...', 'info');
+      $('#disabled-field').val('Тестовое значение');
+      await sleep(300);
+
+      const isValid3 = compDisabled.validate();
+      if (isValid3) {
+        log('✅ Шаг 3: Заполненное поле валидно', 'success');
+      } else {
+        throw new Error('Заполненное поле должно быть валидно');
+      }
+
+      log('=== Авто-тест секции 2: Успешно ===', 'success');
+      $('#test-result-2').removeClass('pending').addClass('pass')
+        .text('✅ Авто-тест пройден');
+
+    } catch (error) {
+      log(`❌ Авто-тест провален: ${error.message}`, 'error');
+      $('#test-result-2').removeClass('pending').addClass('fail')
+        .text(`❌ Ошибка: ${error.message}`);
+    } finally {
+      $btn.prop('disabled', false).text('▶️ Авто-тест секции 2');
+      testRunning = false;
+    }
+  });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 3
+    // ============================================================
+
+    $('#btn-auto-test-section-3').on('click', async function () {
+    if (testRunning) return;
+    testRunning = true;
+
+    const $btn = $(this);
+    $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+    try {
+      log('=== Авто-тест секции 3: Начало ===', 'info');
+
+      const compHidden = $('#form-hidden').data('modia-component');
+
+      // Шаг 1: Hidden поле → пропускается
+      log('Шаг 1: Валидация hidden поля...', 'info');
+      $('#hidden-field').addClass('d-none').val('');
+      if (compHidden) compHidden.refreshRules();
+      await sleep(300);
+
+      const isValid1 = compHidden.validate();
+      if (isValid1) {
+        log('✅ Шаг 1: Hidden поле пропущено', 'success');
+      } else {
+        throw new Error('Hidden поле должно быть пропущено');
+      }
+
+      await sleep(500);
+
+      // Шаг 2: Показать поле → ошибка (пустое)
+      log('Шаг 2: Показ поля...', 'info');
+      $('#hidden-field').removeClass('d-none');
+      if (compHidden) compHidden.refreshRules();
+      await sleep(300);
+
+      const isValid2 = compHidden.validate();
+      if (!isValid2) {
+        log('✅ Шаг 2: Показанное пустое поле невалидно', 'success');
+      } else {
+        throw new Error('Показанное пустое поле должно быть невалидно');
+      }
+
+      await sleep(500);
+
+      // Шаг 3: Заполнить поле → успех
+      log('Шаг 3: Заполнение поля...', 'info');
+      $('#hidden-field').val('Тестовое значение');
+      await sleep(300);
+
+      const isValid3 = compHidden.validate();
+      if (isValid3) {
+        log('✅ Шаг 3: Заполненное поле валидно', 'success');
+      } else {
+        throw new Error('Заполненное поле должно быть валидно');
+      }
+
+      log('=== Авто-тест секции 3: Успешно ===', 'success');
+      $('#test-result-3').removeClass('pending').addClass('pass')
+        .text('✅ Авто-тест пройден');
+
+    } catch (error) {
+      log(`❌ Авто-тест провален: ${error.message}`, 'error');
+      $('#test-result-3').removeClass('pending').addClass('fail')
+        .text(`❌ Ошибка: ${error.message}`);
+    } finally {
+      $btn.prop('disabled', false).text('▶️ Авто-тест секции 3');
+      testRunning = false;
+    }
+  });
+  
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 4
+    // ============================================================
+
+    $('#btn-auto-test-section-4').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 4: Начало ===', 'info');
+
+        const $formDestroy = $('#form-destroy');
+        let compDestroy = $formDestroy.data('modia-component');
+
+        // Шаг 1: Проверка инициализации
+        log('Шаг 1: Проверка инициализации...', 'info');
+        if (!compDestroy) {
+          throw new Error('Компонент не инициализирован');
+        }
+        log('✅ Шаг 1: Компонент инициализирован', 'success');
+
+        // Шаг 2: Создать ошибку (валидация пустого поля)
+        log('Шаг 2: Создание ошибки...', 'info');
+        $('#destroy-field').val('');
+        if (compDestroy) compDestroy.refreshRules();
+        await sleep(300);
+
+        const isValidBefore = compDestroy.validate();
+        const hasErrors = compDestroy.getErrors().length > 0;
+
+        if (!isValidBefore && hasErrors) {
+          log('✅ Шаг 2: Ошибка создана', 'success');
+        } else {
+          throw new Error(`Ошибка должна быть создана (isValid=${isValidBefore}, errors=${compDestroy.getErrors().length})`);
+        }
+
+        await sleep(500);
+
+        // Шаг 3: Уничтожение компонента
+        log('Шаг 3: Уничтожение компонента...', 'info');
+        compDestroy.destroy();
+        await sleep(300);
+
+        // Проверить, что данные удалены
+        const hasDataAfter = $formDestroy.data('modia-component');
+        if (!hasDataAfter) {
+          log('✅ Шаг 3: Данные компонента удалены', 'success');
+        } else {
+          throw new Error('Данные компонента должны быть удалены');
+        }
+
+        await sleep(500);
+
+        // Шаг 4: Повторное уничтожение (не должно падать)
+        log('Шаг 4: Повторное уничтожение...', 'info');
+        try {
+          compDestroy.destroy(); // Повторный вызов
+          log('✅ Шаг 4: Повторное destroy() не вызвало ошибок', 'success');
+        } catch (e) {
+          throw new Error('Повторное destroy() не должно вызывать ошибок');
+        }
+
+        log('=== Авто-тест секции 4: Успешно ===', 'success');
+        $('#test-result-4').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-4').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 4');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 5
+    // ============================================================
+
+    $('#btn-auto-test-section-5').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 5: Начало ===', 'info');
+
+        const compRecovery = $('#form-recovery').data('modia-component');
+
+        // Шаг 1: Валидация с ошибками
+        log('Шаг 1: Валидация с ошибками...', 'info');
+        $('#recovery-name').val('');
+        $('#recovery-email').val('');
+        if (compRecovery) compRecovery.refreshRules();
+        await sleep(300);
+
+        const isValid1 = compRecovery.validate();
+        if (!isValid1) {
+          log('✅ Шаг 1: Ошибки валидации', 'success');
+        } else {
+          throw new Error('Пустые поля должны быть невалидны');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Очистка ошибок
+        log('Шаг 2: Очистка ошибок...', 'info');
+        compRecovery.clearErrors();
+        await sleep(300);
+        log('✅ Шаг 2: Ошибки очищены', 'success');
+
+        await sleep(500);
+
+        // Шаг 3: Заполнение и валидация
+        log('Шаг 3: Заполнение и валидация...', 'info');
+        $('#recovery-name').val('Иван');
+        $('#recovery-email').val('ivan@example.com');
+        await sleep(300);
+
+        const isValid2 = compRecovery.validate();
+        if (isValid2) {
+          log('✅ Шаг 3: Валидация успешна', 'success');
+        } else {
+          throw new Error('Заполненные поля должны быть валидны');
+        }
+
+        log('=== Авто-тест секции 5: Успешно ===', 'success');
+        $('#test-result-5').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-5').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 5');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ АВТО-ТЕСТ
+    // ============================================================
+
+    $('#btn-auto-test-all').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Начало ===', 'info');
+
+      await $('#btn-auto-test-section-1').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-2').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-3').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-4').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-5').click();
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Завершён ===', 'success');
+
+      $btn.prop('disabled', false).text('▶️ Запустить авто-тест всех секций');
+      testRunning = false;
+    });
+
+    // ============================================================
+    // ОБРАБОТЧИКИ ЛОГА
+    // ============================================================
+
+    $('#btn-copy-log').on('click', function (e) {
+      e.preventDefault();
+      copyLogToClipboard();
+    });
+
+    $('#btn-clear-log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен</small></div>');
+      log('Лог очищен пользователем', 'info');
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК
+    // ============================================================
+
+    window.addEventListener('error', function (e) {
+      log(`❌ Глобальная ошибка: ${e.message} в ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function (e) {
+      log(`❌ Необработанная Promise-ошибка: ${e.reason}`, 'error');
+    });
+  </script>
+</body>
+
+</html>

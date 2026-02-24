@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест ValidationComponent (Live-валидация)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS (скрывает шаблоны ошибок) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .test-form {
+      max-width: 500px;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .form-status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .form-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .form-status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .console-log-container {
+      position: relative;
+    }
+
+    .btn-copy-log {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .live-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ccc;
+      margin-right: 5px;
+    }
+
+    .live-indicator.active {
+      background: #28a745;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест ValidationComponent</h1>
+    <p class="text-muted">Live-валидация — валидация при blur + debounce на input</p>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 1: Live-валидация при blur -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Live-валидация при blur</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>При потере фокуса (blur) → валидация поля</li>
+          <li>Пустое поле → ошибка появляется сразу после blur</li>
+          <li>Заполненное поле → ошибка исчезает после blur</li>
+          <li>Форма НЕ отправляется (только валидация)</li>
+          <li>Индикатор live-валидации загорается при blur</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Кликните в поле Email → введите текст → кликните вне поля (blur)<br>
+        2. Пустое поле → ошибка появится после blur<br>
+        3. Заполните поле → blur → ошибка исчезнет<br>
+        4. Проверьте индикатор live-валидации
+      </div>
+
+      <!-- Форма для тестирования -->
+      <form id="test-form-1" data-component="validation" data-validation-live="true"
+        data-validation-debounce-delay="300" class="test-form">
+        <div class="form-group">
+          <label for="email1">Email *</label>
+          <input type="email" id="email1" name="email" class="form-control" required placeholder="Введите email">
+          <span class="live-indicator" id="live-indicator-1"></span>
+          <small class="text-muted">Live-валидация при blur</small>
+        </div>
+
+        <div class="form-group">
+          <label for="name1">Имя *</label>
+          <input type="text" id="name1" name="name" class="form-control" required placeholder="Введите имя">
+        </div>
+
+        <!-- Шаблоны ошибок -->
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+          <span class="text-danger" data-rule="email">Некорректный email</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="submit" class="btn btn-primary">📝 Отправить</button>
+          <button type="button" class="btn btn-outline-danger" id="btn-clear-errors-1">
+            🗑️ Очистить ошибки
+          </button>
+        </div>
+      </form>
+
+      <!-- Статус формы -->
+      <div id="form-1-status" class="form-status pending">
+        Статус: Ожидание...
+      </div>
+
+      <!-- Кнопки авто-теста -->
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-1">
+          ▶️ Авто-тест секции 1
+        </button>
+      </div>
+
+      <!-- Результат теста -->
+      <div id="test-result-1" class="test-result pending">
+        Ожидание...
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 2: Debounce на input (только текстовые поля) -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Debounce на input (задержка 300мс)</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>При вводе текста → валидация с задержкой 300мс</li>
+          <li>Быстрый ввод → валидация вызывается 1 раз после паузы</li>
+          <li>Только для текстовых полей (text, email, tel, textarea)</li>
+          <li>Не для select, checkbox, radio</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Начните быстро вводить текст в поле Email<br>
+        2. Валидация сработает только после паузы 300мс<br>
+        3. Проверьте консоль — вызовов validate() должно быть меньше, чем keystrokes
+      </div>
+
+      <!-- Форма для тестирования -->
+      <form id="test-form-2" data-component="validation" data-validation-live="true"
+        data-validation-debounce-delay="300" class="test-form">
+        <div class="form-group">
+          <label for="email2">Email *</label>
+          <input type="email" id="email2" name="email" class="form-control" required placeholder="Быстро введите текст">
+          <div id="debounce-counter" class="mt-2">
+            Вызовов validate(): <strong>0</strong>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="textarea2">Textarea *</label>
+          <textarea id="textarea2" name="description" class="form-control" rows="3" required
+            placeholder="Textarea тоже с debounce"></textarea>
+        </div>
+
+        <!-- Шаблоны ошибок -->
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-outline-secondary" id="btn-reset-counter">
+            🔄 Сбросить счётчик
+          </button>
+        </div>
+      </form>
+
+      <!-- Статус формы -->
+      <div id="form-2-status" class="form-status pending">
+        Статус: Ожидание...
+      </div>
+
+      <!-- Кнопки авто-теста -->
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-2">
+          ▶️ Авто-тест секции 2
+        </button>
+      </div>
+
+      <!-- Результат теста -->
+      <div id="test-result-2" class="test-result pending">
+        Ожидание...
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 3: Сравнение live vs submit -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 3: Сравнение live vs submit</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li><code>live="true"</code> → валидация при blur каждого поля</li>
+          <li><code>live="false"</code> → валидация только при submit</li>
+          <li>Обе формы используют одни правила</li>
+          <li>Ошибки отображаются одинаково</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Заполните первую форму (live) → ошибка появится при blur<br>
+        2. Заполните вторую форму (submit) → ошибка только при клике «Отправить»<br>
+        3. Сравните поведение
+      </div>
+
+      <div class="row">
+        <!-- Форма с live="true" -->
+        <div class="col-md-6">
+          <h5>🟢 Форма 1: Live-валидация</h5>
+          <form id="test-form-3a" data-component="validation" data-validation-live="true" class="test-form">
+            <div class="form-group">
+              <label for="email3a">Email *</label>
+              <input type="email" id="email3a" name="email" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm">📝 Отправить</button>
+          </form>
+          <div id="form-3a-status" class="form-status pending">Статус: Ожидание...</div>
+        </div>
+
+        <!-- Форма с live="false" -->
+        <div class="col-md-6">
+          <h5>🔴 Форма 2: Только submit</h5>
+          <form id="test-form-3b" data-component="validation" data-validation-live="false" class="test-form">
+            <div class="form-group">
+              <label for="email3b">Email *</label>
+              <input type="email" id="email3b" name="email" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-danger btn-sm">📝 Отправить</button>
+          </form>
+          <div id="form-3b-status" class="form-status pending">Статус: Ожидание...</div>
+        </div>
+      </div>
+
+      <!-- Кнопки авто-теста -->
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-3">
+          ▶️ Авто-тест секции 3
+        </button>
+      </div>
+
+      <!-- Результат теста -->
+      <div id="test-result-3" class="test-result pending">
+        Ожидание...
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- КОНСОЛЬ ЛОГГЕРА -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📋 Консоль логгера</h3>
+
+      <div class="console-log-container">
+        <button class="btn btn-sm btn-outline-secondary btn-copy-log" id="btn-copy-log">
+          📋 Копировать
+        </button>
+        <div class="event-log" id="console-log" style="max-height: 300px; overflow-y: auto;">
+          <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-2">
+        <button class="btn btn-outline-secondary" id="btn-clear-log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ГЛОБАЛЬНЫЕ КНОПКИ -->
+    <!-- ============================================================ -->
+    <div class="test-buttons mt-4">
+      <button class="btn btn-success btn-lg" id="btn-auto-test-all">
+        ▶️ Запустить авто-тест всех секций
+      </button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-02-validate-button.html" class="btn btn-outline-secondary">
+        ← Предыдущий тест: Кнопка [data-validate]
+      </a>
+      <a href="test-04-multiple-forms.html" class="btn btn-outline-primary">
+        → Следующий тест: Несколько форм
+      </a>
+    </div>
+  </div>
+
+  <!-- ✅ Modia Index (3 уровня вверх!) -->
+  <script type="module" src="../../../modia/index.js"></script>
+
+  <!-- ✅ Тестовый скрипт -->
+  <script type="module">
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+
+    let validateCallCount = 0;
+
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Live Validation Test] ${message}`);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setFormStatus(formId, status, message) {
+      const $status = $(`#${formId}-status`);
+      $status.removeClass('success error pending').addClass(status);
+      $status.text(`Статус: ${message}`);
+    }
+
+    function incrementValidateCounter() {
+      validateCallCount++;
+      $('#debounce-counter strong').text(validateCallCount);
+      log(`validate() вызван #${validateCallCount}`, 'info');
+    }
+
+    // ============================================================
+    // КОПИРОВАНИЕ ЛОГА В БУФЕР ОБМЕНА
+    // ============================================================
+
+    function copyLogToClipboard() {
+      const $log = $('#console-log');
+
+      // ✅ Получаем текст с сохранением переносов строк
+      const lines = [];
+      $log.find('div').each(function () {
+        lines.push($(this).text().trim());
+      });
+      const text = lines.join('\n');
+
+      if (!text) {
+        log('❌ Нечего копировать — лог пуст', 'error');
+        return false;
+      }
+
+      // Clipboard API + fallback
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          log('✅ Лог скопирован в буфер обмена', 'success');
+          const $btn = $('#btn-copy-log');
+          const originalText = $btn.text();
+          $btn.text('✅ Скопировано!').prop('disabled', true);
+          setTimeout(() => {
+            $btn.text(originalText).prop('disabled', false);
+          }, 2000);
+        }).catch(err => {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        });
+      } else {
+        const $textarea = $('<textarea>').val(text).css({
+          position: 'absolute', left: '-9999px', top: '-9999px'
+        }).appendTo('body');
+        $textarea[0].select();
+        try {
+          document.execCommand('copy');
+          log('✅ Лог скопирован (fallback)', 'success');
+        } catch (err) {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        }
+        $textarea.remove();
+      }
+
+      return true;
+    }
+
+    // ============================================================
+    // СЕКЦИЯ 1: Live-валидация при blur
+    // ============================================================
+
+    $(document).ready(function () {
+      log('DOM готов, ожидание инициализации Modia...', 'info');
+
+      setTimeout(function () {
+        log('Modia инициализирован', 'success');
+
+        const $form1 = $('#test-form-1');
+        const component1 = $form1.data('modia-component');
+
+        if (component1) {
+          log(`✅ Компонент найден: live=${component1.config.live}`, 'success');
+          log(`   debounceDelay: ${component1.config.debounceDelay}мс`, 'info');
+        }
+
+        // Индикатор live-валидации
+        $('#email1').on('blur', function () {
+          $('#live-indicator-1').addClass('active');
+          setTimeout(() => {
+            $('#live-indicator-1').removeClass('active');
+          }, 500);
+        });
+
+        // Обработчик валидации
+        $form1.on('validation:invalid', function (e, data) {
+          log(`❌ Ошибка валидации: ${data.errors.length} ошибок`, 'error');
+          setFormStatus('form-1', 'error', `Ошибок: ${data.errors.length}`);
+        });
+
+        $form1.on('validation:valid', function (e) {
+          log('✅ Форма валидна', 'success');
+          setFormStatus('form-1', 'success', 'Форма валидна!');
+        });
+
+        // Кнопка очистки ошибок
+        $('#btn-clear-errors-1').on('click', function () {
+          if (component1) {
+            component1.clearErrors();
+            log('🗑️ Ошибки очищены', 'info');
+            setFormStatus('form-1', 'pending', 'Ошибки очищены');
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 2: Debounce на input
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form2 = $('#test-form-2');
+        const component2 = $form2.data('modia-component');
+
+        // Счётчик вызовов validate()
+        if (component2) {
+          const originalValidate = component2.validate.bind(component2);
+          component2.validate = function () {
+            incrementValidateCounter();
+            return originalValidate();
+          };
+        }
+
+        // Сброс счётчика
+        $('#btn-reset-counter').on('click', function () {
+          validateCallCount = 0;
+          $('#debounce-counter strong').text(0);
+          log('🔄 Счётчик сброшен', 'info');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 3: Сравнение live vs submit
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form3a = $('#test-form-3a');
+        const $form3b = $('#test-form-3b');
+        const component3a = $form3a.data('modia-component');
+        const component3b = $form3b.data('modia-component');
+
+        log(`Форма 3a: live=${component3a?.config.live}`, 'info');
+        log(`Форма 3b: live=${component3b?.config.live}`, 'info');
+
+        $form3a.on('validation:invalid', function (e, data) {
+          setFormStatus('form-3a', 'error', `Ошибок: ${data.errors.length}`);
+        });
+
+        $form3a.on('validation:valid', function (e) {
+          setFormStatus('form-3a', 'success', 'Валидна');
+        });
+
+        $form3b.on('validation:invalid', function (e, data) {
+          setFormStatus('form-3b', 'error', `Ошибок: ${data.errors.length}`);
+        });
+
+        $form3b.on('validation:valid', function (e) {
+          setFormStatus('form-3b', 'success', 'Валидна');
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 1
+    // ============================================================
+
+    $('#btn-auto-test-section-1').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 1: Начало ===', 'info');
+
+        const $form1 = $('#test-form-1');
+        const component1 = $form1.data('modia-component');
+
+        // Шаг 1: Blur на пустом поле → ошибка
+        log('Шаг 1: Blur на пустом поле...', 'info');
+        $('#email1').focus().val('').trigger('blur');
+        await sleep(500);
+
+        const isValid1 = component1.validate();
+        if (!isValid1) {
+          log('✅ Шаг 1: Пустое поле не валидно', 'success');
+        } else {
+          throw new Error('Пустое поле должно быть невалидно');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Заполнение + blur → успех
+        log('Шаг 2: Заполнение поля...', 'info');
+        $('#email1').val('test@example.com').trigger('blur');
+        await sleep(500);
+
+        const isValid2 = component1.validate();
+        if (isValid2) {
+          log('✅ Шаг 2: Заполненное поле валидно', 'success');
+        } else {
+          throw new Error('Заполненное поле должно быть валидно');
+        }
+
+        log('=== Авто-тест секции 1: Успешно ===', 'success');
+        $('#test-result-1').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-1').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 1');
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 2
+    // ============================================================
+
+    $('#btn-auto-test-section-2').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 2: Начало ===', 'info');
+
+        // Шаг 1: Быстрый ввод → debounce должен сработать 1 раз
+        log('Шаг 1: Быстрый ввод текста...', 'info');
+        validateCallCount = 0;
+        $('#debounce-counter strong').text(0);
+
+        const $email = $('#email2');
+        $email.focus().val('');
+
+        // Эмулируем быстрый ввод
+        for (let i = 0; i < 10; i++) {
+          $email.val($email.val() + 'a').trigger('input');
+          await sleep(50); // Быстрее чем debounce 300мс
+        }
+
+        await sleep(500); // Ждём debounce
+
+        if (validateCallCount <= 3) { // Не больше 3 вызовов за 10 keystrokes
+          log(`✅ Шаг 1: Debounce работает (вызовов: ${validateCallCount})`, 'success');
+        } else {
+          log(`⚠️ Шаг 1: Debounce может не работать (вызовов: ${validateCallCount})`, 'warn');
+        }
+
+        log('=== Авто-тест секции 2: Успешно ===', 'success');
+        $('#test-result-2').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-2').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 2');
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 3
+    // ============================================================
+
+    $('#btn-auto-test-section-3').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 3: Начало ===', 'info');
+
+        const component3a = $('#test-form-3a').data('modia-component');
+        const component3b = $('#test-form-3b').data('modia-component');
+
+        // Шаг 1: Проверка конфига
+        log('Шаг 1: Проверка конфигурации...', 'info');
+        if (component3a.config.live === true) {
+          log('✅ Форма 3a: live=true', 'success');
+        } else {
+          throw new Error('Форма 3a должна иметь live=true');
+        }
+
+        if (component3b.config.live === false) {
+          log('✅ Форма 3b: live=false', 'success');
+        } else {
+          throw new Error('Форма 3b должна иметь live=false');
+        }
+
+        await sleep(500);
+
+        log('=== Авто-тест секции 3: Успешно ===', 'success');
+        $('#test-result-3').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-3').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 3');
+      }
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ АВТО-ТЕСТ
+    // ============================================================
+
+    $('#btn-auto-test-all').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Начало ===', 'info');
+
+      await $('#btn-auto-test-section-1').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-2').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-3').click();
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Завершён ===', 'success');
+
+      $btn.prop('disabled', false).text('▶️ Запустить авто-тест всех секций');
+    });
+
+    // ============================================================
+    // ОБРАБОТЧИКИ ЛОГА
+    // ============================================================
+
+    $('#btn-copy-log').on('click', function (e) {
+      e.preventDefault();
+      copyLogToClipboard();
+    });
+
+    $('#btn-clear-log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен</small></div>');
+      log('Лог очищен пользователем', 'info');
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК
+    // ============================================================
+
+    window.addEventListener('error', function (e) {
+      log(`❌ Глобальная ошибка: ${e.message} в ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function (e) {
+      log(`❌ Необработанная Promise-ошибка: ${e.reason}`, 'error');
+    });
+  </script>
+</body>
+
+</html>

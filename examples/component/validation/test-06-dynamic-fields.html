@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modia — Тест ValidationComponent (Динамические поля)</title>
+
+  <!-- ✅ jQuery CDN (ОБЯЗАТЕЛЬНО) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+  <!-- ✅ Bootstrap 4 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+
+  <!-- ✅ Примеры CSS (2 уровня вверх) -->
+  <link rel="stylesheet" href="../../examples.css">
+
+  <!-- ✅ Modia CSS (скрывает шаблоны ошибок) -->
+  <link rel="stylesheet" href="../../../modia/modia.css">
+
+  <style>
+    .test-form {
+      max-width: 500px;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .form-status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .form-status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .form-status.pending {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .console-log-container {
+      position: relative;
+    }
+
+    .btn-copy-log {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      z-index: 10;
+    }
+
+    .dynamic-field {
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h1>🧪 Тест ValidationComponent</h1>
+    <p class="text-muted">Динамические поля — добавление/удаление полей после инициализации</p>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 1: Добавление поля после инициализации -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 1: Добавление поля (кнопка + JS)</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Новое поле валидируется корректно</li>
+          <li>Ошибки отображаются на новом поле</li>
+          <li>Компонент не требует реинициализации</li>
+          <li>Событие <code>validation:field-added</code> триггерится</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Нажмите <code>➕ Добавить поле</code> → новое поле появится<br>
+        2. Оставьте поле пустым → нажмите <code>📝 Валидировать</code> → ошибка<br>
+        3. Заполните поле → нажмите <code>📝 Валидировать</code> → успех<br>
+        4. Проверьте консоль — событие <code>validation:field-added</code>
+      </div>
+
+      <form id="form-dynamic-1" data-component="validation" class="test-form">
+        <div id="dynamic-fields-container-1">
+          <div class="form-group">
+            <label>Поле 1 *</label>
+            <input type="text" name="dynamic_field[]" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-success btn-sm" id="btn-add-field-1">➕ Добавить поле</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-1">📝 Валидировать</button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btn-clear-1">🗑️ Очистить ошибки</button>
+        </div>
+      </form>
+
+      <div id="form-dynamic-1-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="fields-count-1" class="registry-display">Полей: 1</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-1">
+          ▶️ Авто-тест секции 1
+        </button>
+      </div>
+
+      <div id="test-result-1" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 2: Удаление поля -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 2: Удаление поля</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Удалённое поле не валидируется</li>
+          <li>Ошибки удалённого поля очищаются</li>
+          <li>Компонент не падает при удалении</li>
+          <li>Оставшиеся поля работают корректно</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Добавьте 2-3 поля<br>
+        2. Валидируйте → ошибки на всех пустых<br>
+        3. Удалите одно поле → ошибка должна исчезнуть<br>
+        4. Валидируйте снова → только оставшиеся поля
+      </div>
+
+      <form id="form-dynamic-2" data-component="validation" class="test-form">
+        <div id="dynamic-fields-container-2">
+          <div class="form-group dynamic-field">
+            <label>Поле 1 *</label>
+            <input type="text" name="removable_field[]" class="form-control" required>
+            <button type="button" class="btn btn-danger btn-sm btn-remove-field mt-2">🗑️ Удалить</button>
+          </div>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Обязательное поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-success btn-sm" id="btn-add-field-2">➕ Добавить поле</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-2">📝 Валидировать</button>
+        </div>
+      </form>
+
+      <div id="form-dynamic-2-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="fields-count-2" class="registry-display">Полей: 1</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-2">
+          ▶️ Авто-тест секции 2
+        </button>
+      </div>
+
+      <div id="test-result-2" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- СЕКЦИЯ 3: Массив полей (name='field[]') -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📍 Секция 3: Массив полей (name='field[]')</h3>
+
+      <div class="expected-result">
+        <h4>✅ Ожидаемый результат:</h4>
+        <ul>
+          <li>Группировка по <code>name='field[]'</code> работает</li>
+          <li>Валидация «хотя бы одно заполнено»</li>
+          <li>Ошибки на всех полях группы</li>
+          <li><code>getFormData()</code> возвращает массив</li>
+        </ul>
+      </div>
+
+      <div class="instruction-box">
+        <strong>📋 Ручной тест:</strong><br>
+        1. Оставьте все поля пустыми → валидация → ошибка<br>
+        2. Заполните ТОЛЬКО ОДНО поле → валидация → успех<br>
+        3. Нажмите <code>🔍 Получить данные</code> → массив значений
+      </div>
+
+      <form id="form-dynamic-3" data-component="validation" class="test-form">
+        <div id="dynamic-fields-container-3">
+          <div class="form-group">
+            <label>Тег 1</label>
+            <input type="text" name="tags[]" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Тег 2</label>
+            <input type="text" name="tags[]" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Тег 3</label>
+            <input type="text" name="tags[]" class="form-control">
+          </div>
+        </div>
+
+        <div class="error-templates">
+          <span class="text-danger" data-rule="required">Заполните хотя бы одно поле</span>
+        </div>
+
+        <div class="form-group mt-3">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-validate-3">📝 Валидировать</button>
+          <button type="button" class="btn btn-info btn-sm" id="btn-get-data-3">🔍 Получить данные</button>
+        </div>
+      </form>
+
+      <div id="form-dynamic-3-status" class="form-status pending">Статус: Ожидание...</div>
+      <div id="form-data-3" class="registry-display">Данные: (ожидание)</div>
+
+      <div class="test-buttons mt-3">
+        <button class="btn btn-success" id="btn-auto-test-section-3">
+          ▶️ Авто-тест секции 3
+        </button>
+      </div>
+
+      <div id="test-result-3" class="test-result pending">Ожидание...</div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- КОНСОЛЬ ЛОГГЕРА -->
+    <!-- ============================================================ -->
+    <div class="test-section">
+      <h3>📋 Консоль логгера</h3>
+
+      <div class="console-log-container">
+        <button class="btn btn-sm btn-outline-secondary btn-copy-log" id="btn-copy-log">
+          📋 Копировать
+        </button>
+        <div class="event-log" id="console-log" style="max-height: 300px; overflow-y: auto;">
+          <div class="text-muted"><small>[00:00:00] Консоль логгера готова...</small></div>
+        </div>
+      </div>
+
+      <div class="test-buttons mt-2">
+        <button class="btn btn-outline-secondary" id="btn-clear-log">🧹 Очистить лог</button>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ГЛОБАЛЬНЫЕ КНОПКИ -->
+    <!-- ============================================================ -->
+    <div class="test-buttons mt-4">
+      <button class="btn btn-success btn-lg" id="btn-auto-test-all">
+        ▶️ Запустить авто-тест всех секций
+      </button>
+    </div>
+
+    <!-- Навигация -->
+    <div class="mt-4">
+      <a href="test-05-error-handling.html" class="btn btn-outline-secondary">
+        ← Предыдущий тест: Обработка ошибок
+      </a>
+      <a href="test-07-hidden-fields.html" class="btn btn-outline-primary">
+        → Следующий тест: Скрытые поля
+      </a>
+    </div>
+  </div>
+
+  <!-- ✅ Modia Index (3 уровня вверх!) -->
+  <script type="module" src="../../../modia/index.js"></script>
+
+  <!-- ✅ Тестовый скрипт -->
+  <script type="module">
+    // ============================================================
+    // УТИЛИТЫ
+    // ============================================================
+
+    let testRunning = false;
+    let fieldCounter1 = 1;
+    let fieldCounter2 = 1;
+
+    function log(message, type = 'info') {
+      const $log = $('#console-log');
+      const timestamp = new Date().toLocaleTimeString('ru-RU');
+      const color = type === 'error' ? 'text-danger'
+        : type === 'success' ? 'text-success'
+          : 'text-muted';
+      $log.append(`<div class="${color}"><small>[${timestamp}] ${message}</small></div>`);
+      $log.scrollTop($log[0].scrollHeight);
+      console.log(`[Dynamic Fields Test] ${message}`);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setFormStatus(formId, status, message) {
+      const $status = $(`#${formId}-status`);
+      $status.removeClass('success error pending').addClass(status);
+      $status.text(`Статус: ${message}`);
+    }
+
+    function updateFieldsCount(containerId, displayId) {
+      const count = $(`#${containerId} .form-group`).length;
+      $(`#${displayId}`).text(`Полей: ${count}`);
+      return count;
+    }
+
+    // ============================================================
+    // КОПИРОВАНИЕ ЛОГА В БУФЕР ОБМЕНА
+    // ============================================================
+
+    function copyLogToClipboard() {
+      const $log = $('#console-log');
+      const lines = [];
+      $log.find('div').each(function () {
+        lines.push($(this).text().trim());
+      });
+      const text = lines.join('\n');
+
+      if (!text) {
+        log('❌ Нечего копировать — лог пуст', 'error');
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          log('✅ Лог скопирован в буфер обмена', 'success');
+          const $btn = $('#btn-copy-log');
+          const originalText = $btn.text();
+          $btn.text('✅ Скопировано!').prop('disabled', true);
+          setTimeout(() => {
+            $btn.text(originalText).prop('disabled', false);
+          }, 2000);
+        }).catch(err => {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        });
+      } else {
+        const $textarea = $('<textarea>').val(text).css({
+          position: 'absolute', left: '-9999px', top: '-9999px'
+        }).appendTo('body');
+        $textarea[0].select();
+        try {
+          document.execCommand('copy');
+          log('✅ Лог скопирован (fallback)', 'success');
+        } catch (err) {
+          log(`❌ Ошибка копирования: ${err.message}`, 'error');
+        }
+        $textarea.remove();
+      }
+
+      return true;
+    }
+
+    // ============================================================
+    // СЕКЦИЯ 1: Добавление поля
+    // ============================================================
+
+    $(document).ready(function () {
+      log('DOM готов, ожидание инициализации Modia...', 'info');
+
+      setTimeout(function () {
+        log('Modia инициализирован', 'success');
+
+        const $form1 = $('#form-dynamic-1');
+        const comp1 = $form1.data('modia-component');
+
+        if (comp1) {
+          log(`✅ Компонент найден: ${comp1.constructor.name}`, 'success');
+        }
+
+        // Слушаем событие добавления поля
+        $form1.on('validation:field-added', function (e, data) {
+          log('📬 Событие validation:field-added', 'info');
+          updateFieldsCount('dynamic-fields-container-1', 'fields-count-1');
+        });
+
+        // Добавление поля
+        $('#btn-add-field-1').on('click', function () {
+          fieldCounter1++;
+          const $newField = $(`
+            <div class="form-group dynamic-field">
+              <label>Поле ${fieldCounter1} *</label>
+              <input type="text" name="dynamic_field[]" class="form-control" required>
+            </div>
+          `);
+
+          $('#dynamic-fields-container-1').append($newField);
+          updateFieldsCount('dynamic-fields-container-1', 'fields-count-1');
+
+          // Триггерим событие для компонента
+          $form1.trigger('validation:field-added', { field: $newField.find('input')[0] });
+
+          log(`➕ Поле ${fieldCounter1} добавлено`, 'success');
+        });
+
+        // Валидация
+        $('#btn-validate-1').on('click', function () {
+          if (comp1) {
+            const isValid = comp1.validate();
+            log(`📝 Валидация: ${isValid}`, isValid ? 'success' : 'error');
+            setFormStatus('form-dynamic-1', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна' : 'Есть ошибки');
+          }
+        });
+
+        // Очистка ошибок
+        $('#btn-clear-1').on('click', function () {
+          if (comp1) {
+            comp1.clearErrors();
+            log('🗑️ Ошибки очищены', 'info');
+            setFormStatus('form-dynamic-1', 'pending', 'Ошибки очищены');
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 2: Удаление поля
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form2 = $('#form-dynamic-2');
+        const comp2 = $form2.data('modia-component');
+
+        // Добавление поля
+        $('#btn-add-field-2').on('click', function () {
+          fieldCounter2++;
+          const $newField = $(`
+            <div class="form-group dynamic-field">
+              <label>Поле ${fieldCounter2} *</label>
+              <input type="text" name="removable_field[]" class="form-control" required>
+              <button type="button" class="btn btn-danger btn-sm btn-remove-field mt-2">🗑️ Удалить</button>
+            </div>
+          `);
+
+          $('#dynamic-fields-container-2').append($newField);
+          updateFieldsCount('dynamic-fields-container-2', 'fields-count-2');
+
+          // Добавляем обработчик удаления
+          $newField.find('.btn-remove-field').on('click', function () {
+            $newField.remove();
+            updateFieldsCount('dynamic-fields-container-2', 'fields-count-2');
+            log('🗑️ Поле удалено', 'info');
+          });
+
+          log(`➕ Поле ${fieldCounter2} добавлено`, 'success');
+        });
+
+        // Удаление существующего поля
+        $(document).on('click', '#form-dynamic-2 .btn-remove-field', function () {
+          $(this).closest('.form-group').remove();
+          updateFieldsCount('dynamic-fields-container-2', 'fields-count-2');
+          log('🗑️ Поле удалено', 'info');
+        });
+
+        // Валидация
+        $('#btn-validate-2').on('click', function () {
+          if (comp2) {
+            const isValid = comp2.validate();
+            log(`📝 Валидация: ${isValid}`, isValid ? 'success' : 'error');
+            setFormStatus('form-dynamic-2', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна' : 'Есть ошибки');
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // СЕКЦИЯ 3: Массив полей
+    // ============================================================
+
+    $(document).ready(function () {
+      setTimeout(function () {
+        const $form3 = $('#form-dynamic-3');
+        const comp3 = $form3.data('modia-component');
+
+        // Валидация
+        $('#btn-validate-3').on('click', function () {
+          if (comp3) {
+            const isValid = comp3.validate();
+            log(`📝 Валидация массива: ${isValid}`, isValid ? 'success' : 'error');
+            setFormStatus('form-dynamic-3', isValid ? 'success' : 'error',
+              isValid ? 'Валидация успешна' : 'Есть ошибки');
+          }
+        });
+
+        // Получить данные
+        $('#btn-get-data-3').on('click', function () {
+          if (comp3) {
+            const data = comp3.getFormData();
+            log('🔍 getFormData(): ' + JSON.stringify(data), 'info');
+            $('#form-data-3').text('Данные: ' + JSON.stringify(data, null, 2));
+          }
+        });
+      }, 500);
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 1
+    // ============================================================
+
+    $('#btn-auto-test-section-1').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 1: Начало ===', 'info');
+
+        const comp1 = $('#form-dynamic-1').data('modia-component');
+
+        // Шаг 1: Добавить поле
+        log('Шаг 1: Добавление поля...', 'info');
+        $('#btn-add-field-1').click();
+        await sleep(500);
+
+        const fieldCount = updateFieldsCount('dynamic-fields-container-1', 'fields-count-1');
+        if (fieldCount >= 2) {
+          log('✅ Шаг 1: Поле добавлено', 'success');
+        } else {
+          throw new Error('Поле не добавлено');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Валидация с пустыми полями
+        log('Шаг 2: Валидация с пустыми полями...', 'info');
+        const isValid1 = comp1.validate();
+        if (!isValid1) {
+          log('✅ Шаг 2: Пустые поля не валидны', 'success');
+        } else {
+          throw new Error('Пустые поля должны быть невалидны');
+        }
+
+        await sleep(500);
+
+        // Шаг 3: Заполнить одно поле → успех
+        log('Шаг 3: Заполнение одного поля...', 'info');
+        $('#dynamic-fields-container-1 input').first().val('Тест');
+        await sleep(300);
+
+        const isValid2 = comp1.validate();
+        if (isValid2) {
+          log('✅ Шаг 3: Заполненное поле валидно', 'success');
+        } else {
+          throw new Error('Заполненное поле должно быть валидно');
+        }
+
+        log('=== Авто-тест секции 1: Успешно ===', 'success');
+        $('#test-result-1').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-1').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 1');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 2
+    // ============================================================
+
+    $('#btn-auto-test-section-2').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 2: Начало ===', 'info');
+
+        const comp2 = $('#form-dynamic-2').data('modia-component');
+
+        // Шаг 1: Добавить 2 поля
+        log('Шаг 1: Добавление 2 полей...', 'info');
+        $('#btn-add-field-2').click();
+        await sleep(300);
+        $('#btn-add-field-2').click();
+        await sleep(300);
+
+        const fieldCount = updateFieldsCount('dynamic-fields-container-2', 'fields-count-2');
+        if (fieldCount >= 3) {
+          log('✅ Шаг 1: Поля добавлены', 'success');
+        } else {
+          throw new Error('Поля не добавлены');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Удалить одно поле
+        log('Шаг 2: Удаление поля...', 'info');
+        $('#dynamic-fields-container-2 .btn-remove-field').first().click();
+        await sleep(300);
+
+        const fieldCountAfter = updateFieldsCount('dynamic-fields-container-2', 'fields-count-2');
+        if (fieldCountAfter < fieldCount) {
+          log('✅ Шаг 2: Поле удалено', 'success');
+        } else {
+          throw new Error('Поле не удалено');
+        }
+
+        await sleep(500);
+
+        // Шаг 3: Валидация оставшихся полей
+        log('Шаг 3: Валидация оставшихся полей...', 'info');
+        const isValid = comp2.validate();
+        log(`✅ Шаг 3: Валидация завершена (isValid=${isValid})`, 'success');
+
+        log('=== Авто-тест секции 2: Успешно ===', 'success');
+        $('#test-result-2').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-2').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 2');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // АВТО-ТЕСТ СЕКЦИИ 3
+    // ============================================================
+
+    $('#btn-auto-test-section-3').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      try {
+        log('=== Авто-тест секции 3: Начало ===', 'info');
+
+        const comp3 = $('#form-dynamic-3').data('modia-component');
+
+        // Шаг 1: Пустые поля → ошибка
+        log('Шаг 1: Валидация пустых полей...', 'info');
+        $('input[name="tags[]"]').val('');
+        await sleep(300);
+
+        const isValid1 = comp3.validate();
+        if (!isValid1) {
+          log('✅ Шаг 1: Пустые поля не валидны', 'success');
+        } else {
+          throw new Error('Пустые поля должны быть невалидны');
+        }
+
+        await sleep(500);
+
+        // Шаг 2: Заполнить одно поле → успех
+        log('Шаг 2: Заполнение одного поля...', 'info');
+        $('input[name="tags[]"]').first().val('tag1');
+        await sleep(300);
+
+        const isValid2 = comp3.validate();
+        if (isValid2) {
+          log('✅ Шаг 2: Одно заполненное поле валидно', 'success');
+        } else {
+          throw new Error('Одно заполненное поле должно быть валидно');
+        }
+
+        await sleep(500);
+
+        // Шаг 3: getFormData() → массив
+        log('Шаг 3: getFormData()...', 'info');
+        const data = comp3.getFormData();
+        if (Array.isArray(data.tags)) {
+          log('✅ Шаг 3: tags — массив', 'success');
+        } else {
+          throw new Error('tags должен быть массивом');
+        }
+
+        log('=== Авто-тест секции 3: Успешно ===', 'success');
+        $('#test-result-3').removeClass('pending').addClass('pass')
+          .text('✅ Авто-тест пройден');
+
+      } catch (error) {
+        log(`❌ Авто-тест провален: ${error.message}`, 'error');
+        $('#test-result-3').removeClass('pending').addClass('fail')
+          .text(`❌ Ошибка: ${error.message}`);
+      } finally {
+        $btn.prop('disabled', false).text('▶️ Авто-тест секции 3');
+        testRunning = false;
+      }
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ АВТО-ТЕСТ
+    // ============================================================
+
+    $('#btn-auto-test-all').on('click', async function () {
+      if (testRunning) return;
+      testRunning = true;
+
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('⏳ Тест выполняется...');
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Начало ===', 'info');
+
+      await $('#btn-auto-test-section-1').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-2').click();
+      await sleep(1000);
+      await $('#btn-auto-test-section-3').click();
+
+      log('=== ГЛОБАЛЬНЫЙ АВТО-ТЕСТ: Завершён ===', 'success');
+
+      $btn.prop('disabled', false).text('▶️ Запустить авто-тест всех секций');
+      testRunning = false;
+    });
+
+    // ============================================================
+    // ОБРАБОТЧИКИ ЛОГА
+    // ============================================================
+
+    $('#btn-copy-log').on('click', function (e) {
+      e.preventDefault();
+      copyLogToClipboard();
+    });
+
+    $('#btn-clear-log').on('click', function () {
+      $('#console-log').html('<div class="text-muted"><small>[00:00:00] Лог очищен</small></div>');
+      log('Лог очищен пользователем', 'info');
+    });
+
+    // ============================================================
+    // ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК
+    // ============================================================
+
+    window.addEventListener('error', function (e) {
+      log(`❌ Глобальная ошибка: ${e.message} в ${e.filename}:${e.lineno}`, 'error');
+    });
+
+    window.addEventListener('unhandledrejection', function (e) {
+      log(`❌ Необработанная Promise-ошибка: ${e.reason}`, 'error');
+    });
+  </script>
+</body>
+
+</html>
