@@ -1,18 +1,13 @@
 /**
  * ValidationComponent
- * 
  * Компонент валидации формы.
  * Отслеживает события отправки формы и валидирует все поля.
  * Поддерживает live-валидацию и динамическое добавление полей.
  * 
- * Улучшения в версии 1.1.0:
- * - Поддержка стилей ошибок (rails/bootstrap/custom)
- * - Обратная совместимость со старыми шаблонами
- * - Сохранение интеграции с Container
- * - Улучшенный метод refreshRules()
- * 
  * @class ValidationComponent
  * @extends BaseComponent
+ * @version 1.2.0
+ * @file modia/components/validation.js
  */
 import { BaseComponent } from '../core.js';
 import { FieldValidator } from '../services/field-validator.js';
@@ -22,13 +17,13 @@ import debounce from '../services/debounce.js';
 
 export class ValidationComponent extends BaseComponent {
   // ========== Статические свойства ==========
-
+  
   /**
    * Имя компонента для регистрации
    * @type {string}
    */
   static componentName = 'validation';
-
+  
   /**
    * Конфигурация по умолчанию
    * @type {Object}
@@ -38,35 +33,35 @@ export class ValidationComponent extends BaseComponent {
     debounceDelay: 300,       // Задержка для debounce (мс)
     validateOnSubmit: true,   // Валидировать при отправке
     validateOnClick: true,    // Валидировать при клике на кнопку
-    errorStyle: 'bootstrap',  // Стиль ошибок: rails, bootstrap, custom
-    demoDelay: 500,           // ← НОВОЕ: задержка отправки для демо
-    novalidate: false         // ← ИЗМЕНЕНО: по умолчанию false
+    errorStyle: 'bootstrap'   // Стиль ошибок: rails, bootstrap, custom
   };
-
+  
   // ========== Конструктор ==========
-
+  
   /**
-   * @param {HTMLElement} element - элемент формы
+   * @param {HTMLElement} element - элемент формы или контейнера
    */
   constructor(element) {
     super(element);
-    console.log('[ValidationComponent] Инициализирован на:', element);
-
-    // Объединяем конфиг по умолчанию с пользовательским
-    this.config = {
-      ...ValidationComponent.defaultConfig,
-      ...this.config
-    };
-
+    
+    // ✅ Объединяем конфиги через $.extend() (jQuery механизм)
+    this.config = $.extend(
+      {},
+      ValidationComponent.defaultConfig,
+      this.config
+    );
+    
     // Массив валидаторов для полей
     this.fieldValidators = [];
-
+    
+    // ✅ BaseComponent уже сохранил компонент: this.$el.data('modia-component', this)
+    
     // Инициализация
     this._init();
   }
-
+  
   // ========== Инициализация ==========
-
+  
   /**
    * Инициализация компонента
    * @private
@@ -74,63 +69,53 @@ export class ValidationComponent extends BaseComponent {
   _init() {
     // Находим и группируем поля
     this._findAndGroupFields();
-
+    
     // Создаём валидаторы
     this._createValidators();
-
-    // Убедимся, что novalidate добавлен
-    if (this.config.novalidate) {
-      this.$el.attr('novalidate', 'novalidate');
-      this._log('Добавлен атрибут novalidate', 'debug');
-    }
-
-
-
+    
     // Навешиваем обработчики событий
     this._bindEvents();
   }
-
+  
   /**
    * Находит все поля и группирует их по имени
-   * 
    * Логика группировки:
    * - Поля с одинаковым именем (например, name='tags[]') → одна группа
    * - Поля без имени → каждое поле отдельная группа
    * - Одиночные поля → группа из одного элемента
-   * 
    * @private
    */
   _findAndGroupFields() {
     // Находим все поля ввода (включая input, select, textarea, button)
     const $allFields = this.$el.find(':input, [contenteditable]').filter(':visible:not(:disabled)');
-
+    
     // Группируем поля по имени
     const fieldGroups = {};
-
+    
     $allFields.each((i, el) => {
       const $field = $(el);
       const name = $field.attr('name');
-
+      
       // Создаём группу для поля
-      const groupKey = name || `__no_name_${i}__`;
-
+      const groupKey = name || `__no_name_${ i } __`;
+      
       if (!fieldGroups[groupKey]) {
         fieldGroups[groupKey] = [];
       }
-
+      
       fieldGroups[groupKey].push($field);
     });
-
+    
     this.fieldGroups = fieldGroups;
   }
-
+  
   /**
    * Создаёт валидаторы для всех групп полей
    * @private
    */
   _createValidators() {
     this.fieldValidators = [];
-
+    
     Object.values(this.fieldGroups).forEach($fields => {
       const validator = this._createValidatorForGroup($fields);
       if (validator) {
@@ -138,10 +123,9 @@ export class ValidationComponent extends BaseComponent {
       }
     });
   }
-
+  
   /**
    * Создаёт валидатор для группы полей
-   * 
    * @param {Array} $fields - массив полей (может быть один элемент)
    * @returns {FieldValidator|null}
    * @private
@@ -149,37 +133,41 @@ export class ValidationComponent extends BaseComponent {
   _createValidatorForGroup($fields) {
     // Преобразуем массив в коллекцию jQuery
     const $group = $($fields);
-
+    
     // Определяем источник значения и экран ошибки
     const { $valueSource, $errorScreen } = this._determineValueSourceAndErrorScreen($group);
-
+    
     // Пропускаем если не нашли элементы
     if (!$valueSource || !$errorScreen) {
       return null;
     }
-
+    
     // Создаём рендерер и валидатор
     const renderer = new FieldErrorRenderer($errorScreen, {
       defaultStyle: this.config.errorStyle
     });
-
-    const validator = new FieldValidator($valueSource, $errorScreen, this.$el, validationRules, renderer);
-
+    
+    const validator = new FieldValidator(
+      $valueSource,
+      $errorScreen,
+      this.$el,
+      validationRules,
+      renderer
+    );
+    
     // Настраиваем live-валидацию если включена
     if (this.config.live) {
       this._setupLiveValidation($group, validator);
     }
-
+    
     return validator;
   }
-
+  
   /**
    * Определяет источник значения и экран ошибки для поля
-   * 
    * Поддерживает два способа:
    * 1. Видимый элемент + внешний источник значения (через data-input-value-source)
    * 2. Скрытое поле + внешний экран ошибки (через data-input-error-screen)
-   * 
    * @param {jQuery} $group - группа полей (может быть одним элементом)
    * @returns {Object} { $valueSource, $errorScreen }
    * @private
@@ -187,10 +175,10 @@ export class ValidationComponent extends BaseComponent {
   _determineValueSourceAndErrorScreen($group) {
     // Берём первый элемент группы для определения
     const $field = $group.first();
-
+    
     let $valueSource = $group;      // По умолчанию — сама группа
     let $errorScreen = $field;      // По умолчанию — первый элемент
-
+    
     // Способ 1: Видимый элемент + внешний источник значения
     // <div data-input-value-source="#hidden">Visible</div>
     // <input type="hidden" id="hidden">
@@ -202,7 +190,7 @@ export class ValidationComponent extends BaseComponent {
         $errorScreen = $field;
       }
     }
-
+    
     // Способ 2: Скрытое поле + внешний экран ошибки
     // <input type="hidden" id="hidden" data-input-error-screen=".visible">
     // <div class="visible"></div>
@@ -214,10 +202,10 @@ export class ValidationComponent extends BaseComponent {
         $errorScreen = $externalError;
       }
     }
-
+    
     return { $valueSource, $errorScreen };
   }
-
+  
   /**
    * Настраивает live-валидацию для группы полей
    * @param {jQuery} $fields - поля для валидации
@@ -226,40 +214,39 @@ export class ValidationComponent extends BaseComponent {
    */
   _setupLiveValidation($fields, validator) {
     // Валидация при потере фокуса (для текстовых полей)
-    $fields.on('blur', () => {
+    $fields.on('blur.modia', () => {
       validator.validate();
     });
-
+    
     // Валидация при изменении (для select, checkbox, radio)
-    $fields.on('change', () => {
+    $fields.on('change.modia', () => {
       validator.validate();
     });
-
+    
     // Валидация при вводе (для текстовых полей с задержкой)
-    // @todo доработать входные типы
-    $fields.filter('input:text, input[type="email"], input[type="tel"], textarea').on('input', debounce(() => {
+    $fields.filter('input:text, input[type="email"], input[type="tel"], textarea').on('input.modia', debounce(() => {
       validator.validate();
     }, this.config.debounceDelay));
   }
-
+  
   // ========== Обработчики событий ==========
-
+  
   /**
    * Навешивает обработчики событий
    * @private
    */
   _bindEvents() {
-    // Валидация при отправке формы (только если это <form>)
+    // Валидация при отправке формы (только если это form)
     if (this.config.validateOnSubmit && this.$el.is('form')) {
       this._on('submit', this._handleSubmit);
     }
-
+    
     // Валидация при клике на кнопку [data-validate]
     // Работает для любых контейнеров (form, div, section)
     if (this.config.validateOnClick) {
       this._on('click', '[data-validate]', this._handleValidateClick);
     }
-
+    
     // Обработка динамического добавления полей
     this._on('validation:field-added', this._handleFieldAdded);
   }
@@ -269,53 +256,36 @@ export class ValidationComponent extends BaseComponent {
    * @param {Event} event - событие отправки
    * @private
    */
-  // _handleSubmit(event) {
-  //   const isValid = this.validate();
-
-  //   // Если есть ошибки — отменяем отправку
-  //   if (!isValid) {
-  //     event.preventDefault();
-  //     event.stopPropagation();
-  //   }
-  // }
   _handleSubmit(event) {
-    this._log('Запущен обработчик отправки формы', 'debug');
-
-    console.log('[ValidationComponent] Submit event:', {
-      type: event.type,
-      target: event.target,
-      currentTarget: event.currentTarget,
-      isDefaultPrevented: event.isDefaultPrevented()
-    });
-
+    // ✅ Хук перед валидацией (кастомное событие)
+    const beforeEvent = $.Event('validation:beforeValidate');
+    this.$el.trigger(beforeEvent);
+    
+    if (beforeEvent.isDefaultPrevented()) {
+      return true;
+    }
+    
     const isValid = this.validate();
-    console.log('[ValidationComponent] Validation result:', isValid);
-
+    
+    // ✅ Хук после валидации
+    this.$el.trigger('validation:validated', { isValid });
+    
     if (!isValid) {
-      console.log('[ValidationComponent] ❌ Preventing form submission : Есть ошибки, отменяем отправку');
+      // ✅ Хук ошибки
+      this.$el.trigger('validation:invalid', { errors: this.getErrors() });
+      
       event.preventDefault();
       event.stopPropagation();
-      event.stopImmediatePropagation();
+      
       return false;
     }
-
-    // ← НОВОЕ: Задержка для демонстрации
-    if (this.config.demoDelay > 0) {
-      event.preventDefault();
-      this._log(`Задержка отправки: ${this.config.demoDelay}мс`, 'debug');
-
-      setTimeout(() => {
-        this._log('Отправка формы после задержки', 'debug');
-        this.$el[0].submit();
-      }, this.config.demoDelay);
-
-      return false;
-    }
-
-    console.log('[ValidationComponent] ✅ Allowing form submission : Всё валидно, разрешаем отправку');
+    
+    // ✅ Хук успеха
+    this.$el.trigger('validation:valid');
+    
     return true;
-  }  
-
+  }
+  
   /**
    * Обработчик клика на кнопку валидации
    * @param {Event} event - событие клика
@@ -324,16 +294,15 @@ export class ValidationComponent extends BaseComponent {
   _handleValidateClick(event) {
     event.preventDefault();
     event.stopPropagation();
-
-    console.log('[ValidationComponent] Validate button clicked');
+    
     const isValid = this.validate();
-
+    
     // Опционально: можно вызвать колбэк или отправить форму вручную
     if (isValid && this.$el.is('form')) {
-      console.log('[ValidationComponent] Form is valid, submitting manually');
-      this.$el[0].submit(); // Отправляем форму без триггера события
+      this.$el[0].submit();
     }
   }
+  
   /**
    * Обработчик динамического добавления поля
    * @param {Event} event - событие добавления
@@ -341,17 +310,17 @@ export class ValidationComponent extends BaseComponent {
    */
   _handleFieldAdded(event) {
     const $newField = $(event.target || event.detail?.field);
-
+    
     if ($newField.length) {
       const name = $newField.attr('name');
-
+      
       if (name) {
         // Ищем существующий валидатор для этой группы по имени
         const existingValidator = this.fieldValidators.find(validator => {
           // Проверяем, содержит ли $valueSource поля с этим именем
-          return validator.$valueSource.filter(`[name="${name}"]`).length > 0;
+          return validator.$valueSource.filter(`[name = "${name}"]`).length > 0;
         });
-
+        
         if (existingValidator) {
           // Добавляем поле к существующему валидатору
           existingValidator.$valueSource = existingValidator.$valueSource.add($newField);
@@ -359,7 +328,7 @@ export class ValidationComponent extends BaseComponent {
           return;
         }
       }
-
+      
       // Если валидатор не найден — создаём новый
       const validator = this._createValidatorForGroup([$newField]);
       if (validator) {
@@ -367,25 +336,25 @@ export class ValidationComponent extends BaseComponent {
       }
     }
   }
-
+  
   // ========== Публичные методы ==========
-
+  
   /**
    * Валидирует все поля формы
    * @returns {boolean} true если все поля валидны
    */
   validate() {
     let isValid = true;
-
+    
     this.fieldValidators.forEach(validator => {
       if (!validator.validate()) {
         isValid = false;
       }
     });
-
+    
     return isValid;
   }
-
+  
   /**
    * Очищает все ошибки
    */
@@ -394,7 +363,7 @@ export class ValidationComponent extends BaseComponent {
       validator.clearError();
     });
   }
-
+  
   /**
    * Обновляет правила для всех валидаторов
    * Используется после динамического изменения полей
@@ -404,7 +373,7 @@ export class ValidationComponent extends BaseComponent {
       validator.loadRules();
     });
   }
-
+  
   /**
    * Устанавливает стиль ошибок для всех валидаторов
    * @param {string} styleName - имя стиля (rails, bootstrap, custom)
@@ -415,5 +384,56 @@ export class ValidationComponent extends BaseComponent {
         validator.errorRenderer.setStyle(styleName);
       }
     });
+  }
+  
+  /**
+   * Сериализует форму в объект
+   * Поддерживает массивы полей (name[])
+   * @returns {Object|null} Объект с данными формы или null если это не форма
+   */
+  getFormData() {
+    if (!this.$el.is('form')) {
+      return null;
+    }
+    
+    return this.$el.serializeArray().reduce((obj, item) => {
+      // Обработка массивов (полей с [])
+      if (item.name.endsWith('[]')) {
+        const key = item.name.slice(0, -2);
+        if (!obj[key]) {
+          obj[key] = [];
+        }
+        obj[key].push(item.value);
+      } else {
+        obj[item.name] = item.value;
+      }
+      return obj;
+    }, {});
+  }
+  
+  /**
+   * Получает все ошибки валидации
+   * @returns {Array} Массив ошибок { field, message }
+   */
+  getErrors() {
+    return this.fieldValidators
+      .filter(validator => validator.errorRenderer.hasError())
+      .map(validator => ({
+        field: validator.$valueSource.attr('name') || validator.$valueSource[0].tagName,
+        message: validator.errorRenderer.getLastErrorMessage()
+      }));
+  }
+  
+  // ========== Уничтожение ==========
+  
+  /**
+   * Уничтожение компонента
+   */
+  destroy() {
+    // Очищаем валидаторы
+    this.fieldValidators = [];
+    
+    // ✅ Вызываем родительский destroy() — очистит события, данные, реестр
+    super.destroy();
   }
 }
