@@ -103,10 +103,16 @@ export class ValidationComponent extends BaseComponent {
    * @private
    */
   _findAndGroupFields() {
-    // Находим все поля ввода (включая input, select, textarea, button)
-    const $allFields = this.$el.find(':input, [contenteditable]').filter(':visible:not(:disabled)');
+    const $allFields = this.$el
+      .find(':input, [contenteditable]')
+      .filter(':visible:not(:disabled)')
+      .filter(function () {
+        const $el = $(this);
+        const type = $el.attr('type');
+        // Исключаем кнопки, submit, reset, image
+        return !['button', 'submit', 'reset', 'image'].includes(type);
+      })
 
-    // Группируем поля по имени
     const fieldGroups = {};
 
     $allFields.each((i, el) => {
@@ -120,15 +126,11 @@ export class ValidationComponent extends BaseComponent {
         fieldGroups[groupKey] = [];
       }
 
-      fieldGroups[groupKey].push($field);
+      // ✅ FIX: Сохраняем DOM-элемент, не jQuery-объект
+      fieldGroups[groupKey].push($field[0]);  // ← [0] извлекает DOM element
     });
 
     this.fieldGroups = fieldGroups;
-
-    logger.info(
-      `Найдено групп полей: ${Object.keys(fieldGroups).length}`,
-      'ValidationComponent'
-    );
   }
 
   /**
@@ -210,7 +212,7 @@ export class ValidationComponent extends BaseComponent {
     const name = $field.attr('name') || 'unnamed';
     return id ? `#${id}[name=${name}]` : `[name=${name}]`;
   }
-
+  
   /**
    * Определяет источник значения и экран ошибки для поля
    * Поддерживает два способа:
@@ -274,20 +276,13 @@ export class ValidationComponent extends BaseComponent {
     this._liveValidationHandlers.push($fields);
 
     // Валидация при потере фокуса
-    $fields.on('blur.modia-live', () => {
-      validator.validate();
-    });
-
+    $fields.on('blur.modia-live', () => validator.validate());
     // Валидация при изменении (для select, checkbox, radio)
-    $fields.on('change.modia-live', () => {
-      validator.validate();
-    });
+    $fields.on('change.modia-live', () => validator.validate());
 
     // Валидация при вводе (для текстовых полей с задержкой)
     $fields.filter('input:text, input[type="email"], input[type="tel"], textarea').each((i, el) => {
-      $(el).on('input.modia-live', debounce(() => {
-        validator.validate();
-      }, this.config.debounceDelay));
+      $(el).on('input.modia-live', debounce(() => validator.validate(), this.config.debounceDelay));
     });
 
     logger.info('Live-валидация настроена', 'ValidationComponent');
@@ -300,28 +295,39 @@ export class ValidationComponent extends BaseComponent {
    * @private
    */
   _bindEvents() {
-    // Валидация при отправке формы (только если это form)
+    // Валидация при отправке формы
     if (this.config.validateOnSubmit && this.$el.is('form')) {
-      this._on('submit', this._handleSubmit);
+      // ПРЯМАЯ привязка для отладки (без _on)
+      this.$el.on('submit.debug', (e) => { this._handleSubmit(e) });
     }
 
     // Валидация при клике на кнопку [data-validate]
     // Работает для любых контейнеров (form, div, section)
     if (this.config.validateOnClick) {
-      this._on('click', '[data-validate]', this._handleValidateClick);
+      // ПРЯМАЯ привязка для отладки
+      this.$el.on('click.debug', '[data-validate]', (e) => { this._handleValidateClick(e) });
+
+      // ПРЯМАЯ привязка для submit-кнопок
+      this.$el.on('click.debug', 'button[type="submit"], input[type="submit"]', (e) => { this._handleSubmitClick(e) });
     }
 
-    // Обработка динамического добавления полей
+    // Стандартные обработчики через _on (остаются для production)
     this._on('validation:field-added', this._handleFieldAdded);
   }
 
-  /**
-   * Обработчик отправки формы
-   * @param {Event} event - событие отправки
-   * @private
-   */
+  _handleSubmitClick(event) {
+    const isValid = this.validate();
+
+    if (!isValid) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+
+    return true;
+  }
+
   _handleSubmit(event) {
-    // ✅ Хук перед валидацией (кастомное событие)
     const beforeEvent = $.Event('validation:beforeValidate');
     this.$el.trigger(beforeEvent);
 
@@ -341,8 +347,10 @@ export class ValidationComponent extends BaseComponent {
       // ✅ Хук ошибки
       this.$el.trigger('validation:invalid', { errors: this.getErrors() });
 
-      event.preventDefault();
-      event.stopPropagation();
+      if (!event.isDefaultPrevented()) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
 
       return false;
     }
@@ -417,8 +425,10 @@ export class ValidationComponent extends BaseComponent {
   validate() {
     let isValid = true;
 
-    this.fieldValidators.forEach(validator => {
-      if (!validator.validate()) {
+    this.fieldValidators.forEach((validator, index) => {
+      const fieldValid = validator.validate();
+
+      if (!fieldValid) {
         isValid = false;
       }
     });
@@ -501,9 +511,13 @@ export class ValidationComponent extends BaseComponent {
    * Уничтожение компонента
    */
   destroy() {
-    logger.info('ValidationComponent уничтожается', 'ValidationComponent');
+    if (!this.$el) {
+      logger.warn('ValidationComponent уже уничтожен', 'ValidationComponent');
+      return;
+    }
 
-    // Очищаем live-валидацию
+    this.clearErrors();
+
     if (this._liveValidationHandlers) {
       this._liveValidationHandlers.forEach($fields => {
         $fields.off('.modia-live');
